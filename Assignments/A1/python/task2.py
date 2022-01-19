@@ -4,7 +4,7 @@ import os
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib.gridspec as gridspec
 # print('Pillow Version:', PIL.__version__)
 
 image = Image.open(os.path.join(sys.path[0], "grass.jpg"))
@@ -57,21 +57,21 @@ blue_img = Image.fromarray(blue)
 
 # red_img.show()
 
-# red_img.save("red_task2d.jpeg", "jpeg")
-# green_img.save("green_task2d.jpeg", "jpeg")
-# blue_img.save("blue_task2d.jpeg", "jpeg")
+gs = gridspec.GridSpec(2,4)
+gs.update(wspace=0.5)
+ax1 = plt.subplot(gs[0, :2])
+ax2 = plt.subplot(gs[0, 2:])
+ax3 = plt.subplot(gs[1,1:3])
 
-fig0, ax = plt.subplots(2, 2)
+ax1.imshow(red, cmap="gray")
+ax1.set_title("Red")
 
-ax[0,0].imshow(red, cmap="gray")
+ax2.imshow(green, cmap="gray")
+ax2.set_title("Green")
 
-ax[0,0].set_title("Red")
+ax3.imshow(blue, cmap="gray")
+ax3.set_title("Blue")
 
-ax[0,1].imshow(green, cmap="gray")
-ax[0,1].set_title("Green")
-
-ax[1,0].imshow(blue, cmap="gray")
-ax[1,0].set_title("Blue")
 plt.show()
 
 img_arr[:,:,0] = red
