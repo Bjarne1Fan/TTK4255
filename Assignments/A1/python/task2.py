@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 # print('Pillow Version:', PIL.__version__)
 
 image = Image.open(os.path.join(sys.path[0], "grass.jpg"))
+print(image.getbands())
 
 # print(image.size)
 # print(image.mode)
@@ -39,13 +40,16 @@ green = img_arr[:,:,1]
 blue = img_arr[:,:,2]
 
 sum_arr = np.sum(img_arr, axis=2)
-ind = np.where(sum_arr == 0)[0]
+#ind = np.where(sum_arr == 0)[0]
 #ind = sum_arr == 0
-np.put(sum_arr, ind, 1)
+#np.put(sum_arr, ind, 1)
 
-red = red/np.sum(img_arr, axis=2)
-green = green/np.sum(img_arr, axis=2)
-blue = blue/np.sum(img_arr, axis=2)
+def divide_arr(lhs, rhs):
+  return np.divide(lhs, rhs, out=np.zeros_like(lhs, dtype=float), where=rhs!=0)
+
+red = divide_arr(red, sum_arr)# np.sum(img_arr, axis=2)
+green = divide_arr(green, sum_arr)
+blue = divide_arr(blue, sum_arr)
 
 red_img = Image.fromarray(red)
 green_img = Image.fromarray(green)
@@ -57,18 +61,18 @@ blue_img = Image.fromarray(blue)
 # green_img.save("green_task2d.jpeg", "jpeg")
 # blue_img.save("blue_task2d.jpeg", "jpeg")
 
-# fig0, ax = plt.subplots(2, 2)
+fig0, ax = plt.subplots(2, 2)
 
-# ax[0,0].imshow(red, cmap="gray")
+ax[0,0].imshow(red, cmap="gray")
 
-# ax[0,0].set_title("Red")
+ax[0,0].set_title("Red")
 
-# ax[0,1].imshow(green, cmap="gray")
-# ax[0,1].set_title("Green")
+ax[0,1].imshow(green, cmap="gray")
+ax[0,1].set_title("Green")
 
-# ax[1,0].imshow(blue, cmap="gray")
-# ax[1,0].set_title("Blue")
-# plt.show()
+ax[1,0].imshow(blue, cmap="gray")
+ax[1,0].set_title("Blue")
+plt.show()
 
 img_arr[:,:,0] = red
 img_arr[:,:,1] = green 
