@@ -1,10 +1,12 @@
-import os 
+from inspect import trace
+import os
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import common as com
 
 # Note: the sample image is naturally grayscale
+
 filename       = '../data/calibration.jpg'
 I = com.rgb_to_gray(
       com.im2double(
@@ -14,6 +16,7 @@ I = com.rgb_to_gray(
       )
     )
 
+
 ###########################################
 #
 # Task 3.1: Compute the Harris-Stephens measure
@@ -21,45 +24,40 @@ I = com.rgb_to_gray(
 ###########################################
 sigma_D = 1
 sigma_I = 3
-alpha = 0.06
-Harris_threshold = 0.1
+alpha = 0.06*0.75
+threshold = 5e-5
 
-# Smoothing the original image slightly
-I_s = com.gaussian(I, sigma_I)
 
-# Calculating the derivatives of the image
-Ix, Iy, _ = com.derivative_of_gaussian(I_s, sigma_D)
+Ix, Iy, Im = com.derivative_of_gaussian(I, sigma=sigma_D)
 
-Ix_square = Ix @ Ix.T 
-Iy_square = Iy @ Iy.T
-IxIy = Ix @ Iy.T
+IxIx = np.square(Ix)
+IyIy = np.square(Iy)
+IxIy = np.multiply(Ix,Iy)
 
-Ixx, Ixy, _ = com.derivative_of_gaussian(Ix_square, sigma_D)
-Ixy, Iyy, _ = com.derivative_of_gaussian(Iy_square, sigma_D)
+A1 = com.gaussian(IxIx, sigma_I)
+A2 = com.gaussian(IxIy, sigma_I)
+A3 = com.gaussian(IxIy, sigma_I)
+A4 = com.gaussian(IyIy, sigma_I)
 
-# Ixx, Ixy, _ = com.derivative_of_gaussian(Ix @ Ix.T, sigma_D)#(np.sqrt(Ix @ Ix.T), sigma_D)
-# _, Iyy, _ = com.derivative_of_gaussian(Iy @ Iy.T, sigma_D)#np.sqrt(Iy @ Iy.T), sigma_D)
+R = np.zeros_like(I)
 
-# Creating the weighted matrix
-# WARNING: A does apparently contain infs or nan
-A = np.block([[Ixx, Ixy], [Ixy, Iyy]])
+h, w = I.shape
 
-# Getting eigenvalues and eigenvectors
-# (lambda_0, lambda_1), _ = np.linalg.eig(A)
+for r in range(0,h):
+  for c in range(0,w):
+    A = [[A1[r,c], A2[r,c]], [A3[r,c], A4[r,c]]]
+    R[r,c] = np.linalg.det(A) - alpha * np.trace(A)**2
 
-# Corner response function
-print(A.shape)
-R = np.linalg.det(A) - alpha * np.trace(A)**2 # How to calculate this? Ask Fanebust!
-
-response = R > Harris_threshold #np.zeros_like(I)
-
-###########################################
+response = R > threshold  
+##########################################
 #
 # Task 3.4: Extract local maxima
 #
 ###########################################
-corners_y = [0] # Placeholder
-corners_x = [0] # Placeholder
+local_maximum = com.extract_local_maxima(R, 0.001)
+
+corners_y = local_maximum[0]
+corners_x = local_maximum[1]
 
 ###########################################
 #
