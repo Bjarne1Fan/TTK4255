@@ -1,17 +1,26 @@
+import os
+import sys 
+
 import numpy as np
 import matplotlib.pyplot as plt
-from common import *
+import common as com
 
 # Tip: Use np.loadtxt to load data into an array
-K = np.loadtxt('../data/task2K.txt')
-X = np.loadtxt('../data/task2points.txt')
+K = np.loadtxt(os.path.join(sys.path[0], '../data/task2K.txt'))
+X = np.loadtxt(os.path.join(sys.path[0], '../data/task2points.txt'))
 
 # Task 2.2: Implement the project function
-u,v = project(K, X)
+u, v = com.project(K, X)
+
+print(u)
+print(" ")
+print(v)
+print(" ")
+print(K)
 
 # You would change these to be the resolution of your image. Here we have
 # no image, so we arbitrarily choose a resolution.
-width,height = 600,400
+width, height = 600, 400
 
 #
 # Figure for Task 2.2: Show pinhole projection of 3D points
