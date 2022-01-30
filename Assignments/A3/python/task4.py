@@ -23,7 +23,7 @@ p_2 = com.translate(0, P, 0) @ P_0
 p_3 = com.translate(P, P, 0) @ P_0
 
 # Selcting between task 4.3 and task4.7
-is_task_4_7 = True
+is_task_4_7 = False
 
 # Angles
 phi = 0
@@ -55,7 +55,7 @@ if is_task_4_7:
   hinge = T_h_b @ base
   arm = T_a_h @ hinge # Almost like the arm does not take the hinge orientation into account
   rotor = T_r_a @ arm 
-  points = [p_0, p_1, p_2, p_3, base, hinge, arm, rotor]
+  points = points + [base, hinge, arm, rotor]
 
 # Transform the points into pixel-coordinates
 X_p = np.array(points).T # Fuck this transpose.... Kill me!
