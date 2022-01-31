@@ -24,7 +24,7 @@ p_2 = com.translate(0, P, 0) @ P_0
 p_3 = com.translate(P, P, 0) @ P_0
 
 # Selcting between task 4.3 and task4.7
-is_task_4_7 = True
+is_task_4_7 = False
 
 # Angles
 phi = 0
@@ -75,6 +75,14 @@ if is_task_4_7:
 
   points = points + [a_0, a_1, a_2, r_0, r_1, r_2, r_3]
 
+  # Draw the frames
+  com.draw_frame(K, T_platform_to_camera, scale=0.05)
+  com.draw_frame(K, T_platform_to_camera @ T_platform_to_base, scale=0.05)
+  com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge, scale=0.05)
+  com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge @ T_hinge_to_arm, scale=0.05)
+  com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge @ T_hinge_to_arm @ T_arm_to_rotor, scale=0.05)
+
+
   # base = T_platform_to_base @ P_0
   # hinge = T_platform_to_base @ T_base_to_hinge @ base
   # arm = T_platform_to_base @ T_base_to_hinge @ T_hinge_to_arm @ hinge # Almost like the arm does not take the hinge orientation into account
@@ -87,13 +95,6 @@ X_c = T_platform_to_camera @ X_p
 
 u,v = com.project(K, X_c)
 plt.scatter(u, v, c='yellow', marker='.', s=100)
-
-# Draw the frames
-com.draw_frame(K, T_platform_to_camera, scale=0.05)
-com.draw_frame(K, T_platform_to_camera @ T_platform_to_base, scale=0.05)
-com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge, scale=0.05)
-com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge @ T_hinge_to_arm, scale=0.05)
-com.draw_frame(K, T_platform_to_camera @ T_platform_to_base @ T_base_to_hinge @ T_hinge_to_arm @ T_arm_to_rotor, scale=0.05)
 
 # X_arm = heli_points.T[:,:3]
 # X_rotors = heli_points.T[:,3:]
