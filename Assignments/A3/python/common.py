@@ -92,25 +92,18 @@ def project(K: ndarray, X: ndarray)->ndarray:
   using the camera intrinsic matrix K. Returns the dehomogenized
   pixel coordinates as an array of size 2xN.
   """
-  # u_tilde = K @ X
-  # if is_dim_geq4:
-  #   # Task 3
-  #   # Extract the first three rows
-  #   # K = K[:3, :3]
-  #   # X = X[:3, :3]
-  #   u_tilde = u_tilde[:3, :]
   if X.shape[0] == 3:
     u_tilde = K @ X
   elif X.shape[0] == 4:
     u_tilde = K @ X[:3,:]
 
-  u_hom = u_tilde / u_tilde[-1]
-  uv = np.array(
-    [
-      [u_hom[0]], 
-      [u_hom[1]]
-    ]
-  )
+  uv = (u_tilde / u_tilde[-1])[:-1]
+  # uv = np.array(
+  #   [
+  #     u_hom[0], 
+  #     u_hom[1]
+  #   ]
+  # )
 
   return uv
 
