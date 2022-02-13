@@ -10,11 +10,11 @@ detections  = np.loadtxt(os.path.join(sys.path[0], '../data/detections.txt'))
 XY          = np.loadtxt(os.path.join(sys.path[0],'../data/XY.txt')).T
 n_total     = XY.shape[1] # Total number of markers (= 24)
 
-fig = plt.figure(figsize=plt.figaspect(0.35))
 K_inv = np.linalg.inv(K)
 
 # for image_number in range(23): # Use this to run on all images
 for image_number in [4]: # Use this to run on a single image
+  fig = plt.figure(figsize=plt.figaspect(0.35))
 
   # Load data
   # valid : Boolean mask where valid[i] is True if marker i was detected
@@ -48,17 +48,18 @@ for image_number in [4]: # Use this to run on a single image
   max_reprojection_error = np.max(reprojection_errors, axis=0)
   avg_reprojection_error = np.mean(reprojection_errors, axis=0)
 
-  print(min_reprojection_error)
-  print(avg_reprojection_error)
-  print(max_reprojection_error)
+  # print(min_reprojection_error)
+  # print(avg_reprojection_error)
+  # print(max_reprojection_error)
   # print(reprojection_errors)
 
-  T1, T2 = com.decompose_H(H)           
+  T1, T2 = com.decompose_H(H)
+  if T1[2,3] > 0:
+    T = T1
+  else:
+    T = T2
 
-  T = T1                                
-
-  # The figure should be saved in the data directory as out0000.png, etc.
-  # NB! generate_figure expects the predicted pixel coordinates as 'uv_from_H'.
   plt.clf()
   com.generate_figure(fig, image_number, K, T, uv, uv_from_H, XY)
-  plt.savefig(os.path.join(sys.path[0],'../data/out/out%04d.png' % image_number))
+  plt.savefig(os.path.join(sys.path[0],'../figures/out/out%04d.png' % image_number))
+  plt.show()

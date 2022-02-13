@@ -20,8 +20,8 @@ def estimate_H(xy: ndarray, XY: ndarray)->ndarray:
 
   # Find a better method instead of just a for-loop
   for r, c in zip(range(0, A.shape[0], 2), range(n)):
-    A[r,:] = np.array([XY[0, c], XY[1, c], 1, 0, 0, 0, -XY[0, c] * xy[0, c], -XY[1, c]*xy[0, c], -xy[0, c]])
-    A[r + 1,:] = np.array([0, 0, 0, XY[0,c], XY[1, c], 1, -XY[0, c]*xy[1, c], -XY[1, c]*xy[1, c], -xy[1, c]])
+    A[r] = np.array([XY[0, c], XY[1, c], 1, 0, 0, 0, -XY[0, c] * xy[0, c], -XY[1, c] * xy[0, c], -xy[0, c]])
+    A[r + 1] = np.array([0, 0, 0, XY[0,c], XY[1, c], 1, -XY[0, c]*xy[1, c], -XY[1, c] * xy[1, c], -xy[1, c]])
 
   _, _, VT = np.linalg.svd(A)
   # h is the last column in V, thus being the last row in VT
@@ -35,26 +35,39 @@ def decompose_H(H: ndarray)->Tuple:
   # Tip: Use np.linalg.norm to compute the Euclidean length
   # The function is supposed to return the two transformation-matrices
   # corresponding from transforming from camera to the world 
-  r0 = H[:,0]
-  r1 = H[:,1]
-  t = H[:,2]
-
-  abs_k = np.linalg.norm(r0) 
-
+  abs_k = np.linalg.norm(H[:,0])
+  r0 = H[:,0] / abs_k
+  r1 = H[:,1] / abs_k
   r2 = np.cross(r0, r1)
-  R1 = np.array([r0, r1, r2]) / abs_k
-  R2 = -R1
+  
+  t = H[:,2] / abs_k
 
-  # But in which direction are these matrices conforming to?
-  # Are they transforming the system from the image to the camera frame, 
-  # or is it another transformation that they do? 
-  T1 = np.block([[R1, t.reshape(3,-1)], [np.zeros_like(t.T), 1]])
-  T2 = np.block([[R2, t.reshape(3,-1)], [np.zeros_like(t.T), 1]])
+  t1 = t
+  t2 = -t1
+
+  R1 = np.column_stack((r0, r1, r2))
+  R2 = np.column_stack((-r0, -r1, r2)) # Note sign of r2
+
+  print(np.linalg.det(R1))
+  print(np.linalg.det(R2))
+
+  R1 = closest_rotation_matrix(R1)
+  R2 = closest_rotation_matrix(R2)
+
+  print(np.linalg.det(R1))
+  print(np.linalg.det(R2))
+
+  T1 = np.eye(4)
+  T2 = np.eye(4)
+  T1[:3,:4] = np.column_stack((R1, t1))
+  T2[:3,:4] = np.column_stack((R2, t2))
+
   return T1, T2
 
 def closest_rotation_matrix(Q: ndarray)->ndarray:
-    R = Q # Placeholder
-    return R
+  U, _, VT = np.linalg.svd(Q)
+  R = U @ VT
+  return R
 
 def project(K: ndarray, X: ndarray)->ndarray:
   """
@@ -107,10 +120,10 @@ def generate_figure(fig, image_number, K, T, uv, uv_predicted, XY):
   #
   ax = fig.add_subplot(1, 2, 2, projection='3d')
   ax.plot(XY[0,:], XY[1,:], np.zeros(XY.shape[1]), '.') # Draw markers in 3D
-  pO = np.linalg.inv(T)@np.array([0,0,0,1]) # Compute camera origin
-  pX = np.linalg.inv(T)@np.array([6,0,0,1]) # Compute camera X-axis
-  pY = np.linalg.inv(T)@np.array([0,6,0,1]) # Compute camera Y-axis
-  pZ = np.linalg.inv(T)@np.array([0,0,6,1]) # Compute camera Z-axis
+  pO = np.linalg.inv(T) @ np.array([0,0,0,1]) # Compute camera origin
+  pX = np.linalg.inv(T) @ np.array([6,0,0,1]) # Compute camera X-axis
+  pY = np.linalg.inv(T) @ np.array([0,6,0,1]) # Compute camera Y-axis
+  pZ = np.linalg.inv(T) @ np.array([0,0,6,1]) # Compute camera Z-axis
   plt.plot([pO[0], pZ[0]], [pO[1], pZ[1]], [pO[2], pZ[2]], color='blue')  # Draw camera Z-axis
   plt.plot([pO[0], pY[0]], [pO[1], pY[1]], [pO[2], pY[2]], color='green') # Draw camera Y-axis
   plt.plot([pO[0], pX[0]], [pO[1], pX[1]], [pO[2], pX[2]], color='red')   # Draw camera X-axis
@@ -122,4 +135,3 @@ def generate_figure(fig, image_number, K, T, uv, uv_predicted, XY):
   ax.set_ylabel('Z')
 
   plt.tight_layout()
-  plt.show()
