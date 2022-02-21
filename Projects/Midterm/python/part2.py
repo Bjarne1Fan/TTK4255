@@ -1,17 +1,20 @@
+import os 
+import sys
+
 import numpy as np
 import matplotlib.pyplot as plt
-from common import *
+import common as com
 
 # Tip: The solution from HW4 is inside common.py
 
-K = np.loadtxt('../data/K.txt')
-u = np.loadtxt('../data/platform_corners_image.txt')
-X = np.loadtxt('../data/platform_corners_metric.txt')
-I = plt.imread('../data/video0000.jpg') # Only used for plotting
+K = np.loadtxt(os.path.join(sys.path[0], '../data/data/K.txt'))
+u = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_corners_image.txt'))
+X = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_corners_metric.txt'))
+I = plt.imread(os.path.join(sys.path[0], '../data/quanser/video0000.jpg')) # Only used for plotting
 
 # Example: Compute predicted image locations and reprojection errors
-T_hat = translate(-0.3, 0.1, 1.0)@rotate_x(1.8)
-u_hat = project(K, T_hat@X)
+T_hat = com.translate(-0.3, 0.1, 1.0) @ com.rotate_x(1.8)
+u_hat = com.project(K, T_hat @ X)
 errors = np.linalg.norm(u - u_hat, axis=0)
 
 # Print the reprojection errors requested in Task 2.1 and 2.2.
@@ -29,7 +32,7 @@ plt.legend()
 plt.plot(u_hat[0,:], u_hat[1,:], linestyle='--', color='white')
 
 # Tip: To draw a transformation's axes (only requested in Task 2.3)
-draw_frame(K, T_hat, scale=0.05, labels=True)
+com.draw_frame(K, T_hat, scale=0.05, labels=True)
 
 # Tip: To zoom in on the platform:
 plt.xlim([200, 500])

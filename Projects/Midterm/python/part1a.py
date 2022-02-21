@@ -1,3 +1,6 @@
+import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from gauss_newton import jacobian2point, gauss_newton
@@ -23,7 +26,7 @@ p0 = np.array([11.6, 28.9, 0.0])*np.pi/180
 # not detected. Which entries are valid is encoded in
 # the "weights" array, which is a 1D array of length 7.
 #
-detections = np.loadtxt('../data/detections.txt')
+detections = np.loadtxt(os.path.join(sys.path[0], '../data/data/detections.txt'))
 weights = detections[image_number, ::3]
 uv = np.vstack((detections[image_number, 1::3], detections[image_number, 2::3]))
 
@@ -62,5 +65,5 @@ print('Median:   %5.02f px' % np.median(e))
 
 # Visualize the frames and marker points
 quanser.draw(uv, weights, image_number)
-plt.savefig('out_part1a.png')
+# plt.savefig('out_part1a.png')
 plt.show()
