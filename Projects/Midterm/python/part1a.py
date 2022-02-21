@@ -13,11 +13,8 @@ num_steps = 10                 # Gauss-Newton iterations
 epsilon = 1e-6                 # Finite-difference epsilon
 
 # Task 1.3:
-# Comment out these two lines after testing your implementation
-# of the "residuals" method.
-#
-image_number = 0
-p0 = np.array([11.6, 28.9, 0.0])*np.pi/180
+# image_number = 0
+# p0 = np.array([11.6, 28.9, 0.0]) * np.pi/180
 
 # Tip:
 # Here, "uv" is a 2x7 array of detected marker locations.
@@ -48,11 +45,11 @@ jacfun = lambda p : jacobian2point(resfun, p, epsilon=epsilon)
 
 # You must use a different image to run the rest of the script
 if image_number == 0:
-    print('Residuals at image 0:')
-    print(resfun(p0))
-    quit()
+  print('Residuals at image 0:')
+  print(resfun(p0))
+  quit()
 
-p = gauss_newton(resfun=resfun, jacfun=jacfun, p0=p0, step_size=step_size, num_steps=num_steps)
+p = gauss_newton(resfun=resfun, jacfun=jacfun, p0=p0, step_size=step_size, tolerance=0.01*np.pi/180, num_steps=num_steps)
 
 # Calculate and print the reprojection errors at the optimum
 r = resfun(p).reshape((2,-1))

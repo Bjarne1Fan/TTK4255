@@ -1,10 +1,18 @@
 import os 
 import sys
+from xmlrpc.client import Boolean
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_all(all_p, all_r, detections, subtract_initial_offset):
+from numpy import ndarray
+
+def plot_all(
+      all_p                   : ndarray, 
+      all_r                   : ndarray, 
+      detections              : ndarray, 
+      subtract_initial_offset : bool
+    ):
   """
   Tip: The logs have been time-synchronized with the image sequence,
   but there may be an offset between the motor angles and the vision

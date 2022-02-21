@@ -5,18 +5,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 import common as com
 
+from numpy import ndarray
+from typing import Callable
+
 class Quanser:
   def __init__(self):
     self.K = np.loadtxt(os.path.join(sys.path[0], '../data/data/K.txt'))
     self.heli_points = np.loadtxt(os.path.join(sys.path[0], '../data/data/heli_points.txt')).T
     self.platform_to_camera = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_to_camera.txt'))
 
-  def residuals(self, uv, weights, yaw, pitch, roll):
+  def residuals(
+        self    : Callable, 
+        uv      : ndarray, 
+        weights : ndarray, 
+        yaw     : float, 
+        pitch   : float, 
+        roll    : float
+      ):
     # Compute the helicopter coordinate frames
-    base_to_platform = com.translate(0.1145/2, 0.1145/2, 0.0) @ com.rotate_z(yaw)
-    hinge_to_base    = com.translate(0.00, 0.00,  0.325) @ com.rotate_y(pitch)
-    arm_to_hinge     = com.translate(0.00, 0.00, -0.050)
-    rotors_to_arm    = com.translate(0.65, 0.00, -0.030) @ com.rotate_x(roll)
+    base_to_platform      = com.translate(0.1145/2, 0.1145/2, 0.0) @ com.rotate_z(yaw)
+    hinge_to_base         = com.translate(0.00, 0.00,  0.325) @ com.rotate_y(pitch)
+    arm_to_hinge          = com.translate(0.00, 0.00, -0.050)
+    rotors_to_arm         = com.translate(0.65, 0.00, -0.030) @ com.rotate_x(roll)
     self.base_to_camera   = self.platform_to_camera@base_to_platform
     self.hinge_to_camera  = self.base_to_camera@hinge_to_base
     self.arm_to_camera    = self.hinge_to_camera@arm_to_hinge
@@ -28,16 +38,17 @@ class Quanser:
     uv_hat = com.project(self.K, np.hstack([p1, p2]))
     self.uv_hat = uv_hat # Save for use in draw()
 
-    #
-    # TASK: Compute the vector of residuals.
-    #
-    # Tip: Use np.hstack to concatenate the horizontal and vertical residual components
-    # into a single 1D array. Note: The plotting code will not work correctly if you use
-    # a different ordering.
-    r = np.zeros(2*7) # Placeholder, remove me!
+    r_0 = uv_hat[0] - uv[0]
+    r_1 = uv_hat[1] - uv[1]
+    r = np.hstack([r_0, r_1])
     return r
 
-  def draw(self, uv, weights, image_number):
+  def draw(
+        self          : Callable, 
+        uv            : ndarray, 
+        weights       : ndarray, 
+        image_number  : ndarray
+      ):
     I = plt.imread(os.path.join(sys.path[0], '../data/quanser/video%04d.jpg' % image_number))
     plt.imshow(I)
     plt.scatter(*uv[:, weights == 1], linewidths=1, edgecolor='black', color='white', s=80, label='Observed')
