@@ -27,10 +27,10 @@ class Quanser:
     hinge_to_base         = com.translate(0.00, 0.00,  0.325) @ com.rotate_y(pitch)
     arm_to_hinge          = com.translate(0.00, 0.00, -0.050)
     rotors_to_arm         = com.translate(0.65, 0.00, -0.030) @ com.rotate_x(roll)
-    self.base_to_camera   = self.platform_to_camera@base_to_platform
-    self.hinge_to_camera  = self.base_to_camera@hinge_to_base
-    self.arm_to_camera    = self.hinge_to_camera@arm_to_hinge
-    self.rotors_to_camera = self.arm_to_camera@rotors_to_arm
+    self.base_to_camera   = self.platform_to_camera @ base_to_platform
+    self.hinge_to_camera  = self.base_to_camera @ hinge_to_base
+    self.arm_to_camera    = self.hinge_to_camera @ arm_to_hinge
+    self.rotors_to_camera = self.arm_to_camera @ rotors_to_arm
 
     # Compute the predicted image location of the markers
     p1 = self.arm_to_camera @ self.heli_points[:,:3]

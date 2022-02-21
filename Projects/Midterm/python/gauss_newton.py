@@ -32,17 +32,22 @@ def gauss_newton(
   r = resfun(p0)
   J = jacfun(p0)
   p = p0.copy()
-  p_prev = p
+  p_prev = p.copy()
   for iteration in range(num_steps):
-    A = J.T@J
-    b = -J.T@r
+    A = J.T @ J
+    # print(np.linalg.det(A))
+    # print(A)
+    
+    b = -J.T @ r
     d = np.linalg.solve(A, b)
     p = p + step_size * d
+
+    if np.linalg.norm(p - p_prev) < tolerance:
+      print("Tolerance reached after {} iterations".format(iteration))
+      break
+    p_prev = p.copy()
 
     r = resfun(p)
     J = jacfun(p)
 
-    if np.linalg.norm(p - p_prev) < tolerance:
-      break
-    p_prev = p
   return p

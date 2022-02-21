@@ -43,7 +43,7 @@ def plot_all(
   plt.xlabel('Reprojection error (pixels)')
   plt.title('Reprojection error distribution')
   plt.tight_layout()
-  plt.savefig('out_histogram.png')
+  # plt.savefig('out_histogram.png')
 
   #
   # Figure: Comparison between logged encoder values and vision estimates
