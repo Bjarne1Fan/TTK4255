@@ -61,6 +61,13 @@ def u_hat_residual(
       XY01T : ndarray,
       K     : ndarray
     )->ndarray:
+  if R0.shape == (3,3):
+    # Expand the dimension
+    temp = np.eye(4)
+    temp[:3,:3] = R0
+    R0 = temp
+  assert R0.shape == (4,4), "R0 must have shape 3x3 or 4x4" 
+
   # Extracting values
   phi, theta, psi = x[0], x[1], x[2]
   tx, ty, tz = x[3], x[4], x[5]
@@ -72,7 +79,7 @@ def u_hat_residual(
   T[:3,:3] = R[:3,:3]
 
   # Calculating the estimated coordinates
-  u_hat = com.project(K, T_hat @ XY01T) 
+  u_hat = com.project(K, T @ XY01T) 
 
   # Calculating the residual function
   r_0 = u_hat[0] - uv[0]
@@ -80,9 +87,11 @@ def u_hat_residual(
   r = np.hstack([r_0, r_1])
   return r
 
-# Initial conditions for task 2.2
-x = np.array([0,0,0,0,0,0])
-R0 = np.eye(4)
+# Initial conditions for task 2.2. Using the values obtained from 2.1
+x = np.zeros(6)
+x[3:] = T_hat[:3,3]
+print(x)
+R0 = T_hat[:3,:3]
 
 # Creating the residual function
 resfun = lambda x : u_hat_residual(x, R0, uv, XY01T, K)
