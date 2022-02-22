@@ -41,7 +41,7 @@ else:
 
 # Calculate the predicted image locations
 u_hat_a = com.project(K, H @ XY1.T)
-u_hat_b = com.project(K, T_hat @ XY01.T)
+u_hat_b = com.project(K, T_hat @ XY01T)
 
 # Switch between a) and b) for task 2.1
 if is_task_a:
@@ -52,43 +52,68 @@ else:
 # Calculating errors for naive implementation 
 errors = uv - u_hat
 
-# Function for iteratively optimizing the errors between the current values and the optimal values
-def u_hat_residual(
-      x     : ndarray, 
-      R0    : ndarray, 
+def LM_optimization(
       uv    : ndarray,
       XY01T : ndarray,
-      K     : ndarray
-    )->ndarray:
-  # Calculating the T-matrix
-  T = com.calculate_iterative_T(x, R0)
+      K     : ndarray,
+      T_hat : ndarray,
+      x0    : ndarray = None
+    )->tuple: 
 
-  # Calculating the estimated coordinates
-  u_hat = com.project(K, T @ XY01T) 
+  # Function for iteratively optimizing the errors between the current values and the optimal values
+  def u_hat_residual(
+        x     : ndarray, 
+        R0    : ndarray, 
+        uv    : ndarray,
+        XY01T : ndarray,
+        K     : ndarray
+      )->ndarray:
+    # Calculating the T-matrix
+    T = com.calculate_iterative_T(x, R0)
 
-  # Calculating the residual function
-  r_0 = u_hat[0] - uv[0]
-  r_1 = u_hat[1] - uv[1]
-  r = np.hstack([r_0, r_1])
-  return r
+    # Calculating the estimated coordinates
+    u_hat = com.project(K, T @ XY01T) 
 
-# Initial conditions for task 2.2. Using the values obtained from 2.1
-x = np.zeros(6)
-x[3:] = T_hat[:3,3]
-R0 = T_hat[:3,:3]
+    # Calculating the residual function
+    r_0 = u_hat[0] - uv[0]
+    r_1 = u_hat[1] - uv[1]
+    r = np.hstack([r_0, r_1])
+    return r
 
-# Creating the residual function
-resfun = lambda x : u_hat_residual(x, R0, uv, XY01T, K)
+  if x0 is None:
+    # Initial conditions for task 2.2. Using the values obtained from 2.1
+    x = np.zeros(6)
+    x[3:] = T_hat[:3,3]
+  else:
+    x = x0
+  R0 = T_hat[:3,:3]
 
-# Minimizing the residual function
-x = least_squares(resfun, x0=x, method='lm').x
+  # Creating the residual function
+  resfun = lambda x : u_hat_residual(x, R0, uv, XY01T, K)
 
-# Calculate the estimated coordinates and transformation matrix
-T_hat = com.calculate_iterative_T(x, R0)
-u_hat = com.project(K, T_hat @ XY01.T)
+  # Minimizing the residual function
+  x = least_squares(resfun, x0=x, method='lm').x
 
-# Calculating the errors from LM-optimization
-errors = u_hat_residual(x, R0, uv, XY01T, K).reshape((-1,4))
+  # Calculate the estimated coordinates and transformation matrix
+  T_hat = com.calculate_iterative_T(x, R0)
+  u_hat = com.project(K, T_hat @ XY01.T)
+
+  # Calculating the errors from LM-optimization
+  errors = u_hat_residual(x, R0, uv, XY01T, K).reshape((-1, XY01T.shape[1]))
+
+  return u_hat, T_hat, errors
+
+# Task 2.2
+u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat)
+
+# Task 2.3
+# Removing the last measurement
+XY01T = XY01T[:,:3]
+uv = uv[:,:3]
+x0 = np.array([0, 0, 0, 291, 209, 154])
+
+# Get zero error if I run this using None for x0
+u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat, x0=x0)
 
 normed_errors = np.linalg.norm(errors, axis=0)
 
