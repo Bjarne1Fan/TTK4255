@@ -4,7 +4,7 @@ import numpy as np
 
 from numpy import ndarray
 
-def rotate_x(radians : float):
+def rotate_x(radians : float)->ndarray:
     c = np.cos(radians)
     s = np.sin(radians)
     return np.array(
@@ -16,7 +16,7 @@ def rotate_x(radians : float):
       ]
     )
 
-def rotate_y(radians : float):
+def rotate_y(radians : float)->ndarray:
     c = np.cos(radians)
     s = np.sin(radians)
     return np.array(
@@ -28,7 +28,7 @@ def rotate_y(radians : float):
       ]
     )
 
-def rotate_z(radians : float):
+def rotate_z(radians : float)->ndarray:
   c = np.cos(radians)
   s = np.sin(radians)
   return np.array(
@@ -44,7 +44,7 @@ def translate(
       x : float, 
       y : float, 
       z : float
-    ):
+    )->ndarray:
   return np.array(
     [
       [1, 0, 0, x],
@@ -57,7 +57,7 @@ def translate(
 def project(
       K : ndarray, 
       X : ndarray
-    ):
+    )->ndarray:
   """
   Computes the pinhole projection of a (3 or 4)xN array X using
   the camera intrinsic matrix K. Returns the pixel coordinates
@@ -74,7 +74,7 @@ def draw_frame(
       T       : ndarray, 
       scale   : float = 1, 
       labels  : bool = False
-    ):
+    )->None:
   """
   Visualize the coordinate frame axes of the 4x4 object-to-camera
   matrix T using the 3x3 intrinsic matrix K.
@@ -102,36 +102,22 @@ def draw_frame(
 def estimate_H(
       xy : ndarray, 
       XY : ndarray
-    ):
-  # n = XY.shape[1]
-  # A = []
-  # for i in range(n):
-  #   X,Y = XY[:,i]
-  #   x,y = xy[:,i]
-  #   A.append(np.array([X,Y,1, 0,0,0, -X*x, -Y*x, -x]))
-  #   A.append(np.array([0,0,0, X,Y,1, -X*y, -Y*y, -y]))
-  # A = np.array(A)
-  # _, _, VT = np.linalg.svd(A)
-  # h = VT[8,:]
-  # H = np.reshape(h, [3,3])
-  # return H
-
-  # Using own implementation instead
+    )->ndarray:
   n = XY.shape[1]
-  A = np.zeros((2*n, 9))
-
-  for r, c in zip(range(0, A.shape[0], 2), range(n)):
-    A[r] = np.array([XY[0, c], XY[1, c], 1, 0, 0, 0, -XY[0, c] * xy[0, c], -XY[1, c] * xy[0, c], -xy[0, c]])
-    A[r + 1] = np.array([0, 0, 0, XY[0,c], XY[1, c], 1, -XY[0, c]*xy[1, c], -XY[1, c] * xy[1, c], -xy[1, c]])
-
+  A = []
+  for i in range(n):
+    print(XY[:,i])
+    X,Y = XY[:,i]
+    x,y = xy[:,i]
+    A.append(np.array([X,Y,1, 0,0,0, -X*x, -Y*x, -x]))
+    A.append(np.array([0,0,0, X,Y,1, -X*y, -Y*y, -y]))
+  A = np.array(A)
   _, _, VT = np.linalg.svd(A)
-  # h is the last column in V, thus being the last row in VT
-  h = VT[-1]
-
-  H = h.reshape((3, 3))
+  h = VT[8,:]
+  H = np.reshape(h, [3,3])
   return H
 
-def decompose_H(H : ndarray):
+def decompose_H(H : ndarray)->tuple:
   k = np.linalg.norm(H[:,0])
   H /= k
   r1 = H[:,0]
@@ -148,7 +134,7 @@ def decompose_H(H : ndarray):
   T2[:3,3] = -t
   return T1, T2
 
-def closest_rotation_matrix(Q : ndarray):
+def closest_rotation_matrix(Q : ndarray)->ndarray:
   U, _, VT = np.linalg.svd(Q)
   R = U @ VT
   return R

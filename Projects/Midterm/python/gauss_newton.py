@@ -1,5 +1,3 @@
-from ast import Call
-from unittest.mock import CallableMixin
 import numpy as np
 from numpy import ndarray
 from typing import Callable
@@ -8,7 +6,7 @@ def jacobian2point(
       resfun  : Callable, 
       p       : ndarray, 
       epsilon : float
-    ):
+    )->ndarray:
   r = resfun(p)
   J = np.empty((len(r), len(p)))
   for j in range(len(p)):
@@ -28,7 +26,7 @@ def gauss_newton(
       step_size : float, 
       tolerance : float,
       num_steps : int
-    ):
+    )->ndarray:
   r = resfun(p0)
   J = jacfun(p0)
   p = p0.copy()
