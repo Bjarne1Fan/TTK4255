@@ -10,35 +10,42 @@ uv    = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_corners_imag
 XY01T = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_corners_metric.txt'))
 I     = plt.imread(os.path.join(sys.path[0], '../data/quanser/video0000.jpg')) # Only used for plotting
 
+# Switch between task a) and b) for 2.1
 is_task_a = False
 
-# Extracting XY and XY1 (Thanks for the stupid format on XY)
-XY = (XY01T.T[:,:2]).T
-XY1 = np.vstack([XY, np.ones((1, XY.shape[1]))])
+# Extracting values. Copy to prevent references destorying everything
+XY01 = XY01T.T
+XY = XY01[:,:2].copy()
+XY1 = np.hstack([XY.copy(), np.ones((XY.shape[0], 1))])
 
-# Calculating H and u_hat for 2.1
-uv1 = np.vstack((uv, np.ones(uv.shape[1])))
-xy = com.project(np.linalg.inv(K), uv1)
+# Calculating the homogenized pixel-coordinates
+u_tilde = np.vstack((uv, np.ones(uv.shape[1])))
 
-H = com.estimate_H(xy, XY)
-u_hat_a = com.project(K, H @ XY1)
+# Calculating the calibrated camera-coordinates
+xy = com.project(np.linalg.inv(K), u_tilde)
 
+# Estimate H
+H = com.estimate_H(xy, XY.T)
+
+# Decompusing H into T = [R|t]
 T_0, T_1 = com.decompose_H(H)
 
-if (T_0 @ XY01T.T)[2, 3] > 0:
+# Extracting the one with positive z-value
+if (T_0 @ XY01)[2, 3] > 0:
   T_hat = T_0 
 else:
   T_hat = T_1
 
-print(T_hat @ XY01T.T)
-u_hat_b = com.project(K, (T_hat @ XY01T.T).T)
+# Calculate the predicted image locations
+u_hat_a = com.project(K, H @ XY1.T)
+u_hat_b = com.project(K, T_hat @ XY01.T)
 
+# Switch between a) and b) for task 2.1
 if is_task_a:
   u_hat = u_hat_a
 else:
   u_hat = u_hat_b
 
-# u_hat = com.project(K, T_hat @ XY01)
 errors = np.linalg.norm(uv - u_hat, axis=0)
 
 # Print the reprojection errors requested in Task 2.1 and 2.2.
