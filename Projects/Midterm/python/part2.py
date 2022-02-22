@@ -51,7 +51,6 @@ else:
 
 # Calculating errors for naive implementation 
 errors = uv - u_hat
-print(errors)
 
 # Function for iteratively optimizing the errors between the current values and the optimal values
 def u_hat_residual(
@@ -61,22 +60,8 @@ def u_hat_residual(
       XY01T : ndarray,
       K     : ndarray
     )->ndarray:
-  if R0.shape == (3,3):
-    # Expand the dimension
-    temp = np.eye(4)
-    temp[:3,:3] = R0
-    R0 = temp
-  assert R0.shape == (4,4), "R0 must have shape 3x3 or 4x4" 
-
-  # Extracting values
-  phi, theta, psi = x[0], x[1], x[2]
-  tx, ty, tz = x[3], x[4], x[5]
-  
-  # Creating the transformation-matrix
-  R = com.rotate_x(phi) @ com.rotate_y(theta) @ com.rotate_z(psi) @ R0
-  T = com.translate(tx, ty, tz)
-
-  T[:3,:3] = R[:3,:3]
+  # Calculating the T-matrix
+  T = com.calculate_iterative_T(x, R0)
 
   # Calculating the estimated coordinates
   u_hat = com.project(K, T @ XY01T) 
@@ -90,7 +75,6 @@ def u_hat_residual(
 # Initial conditions for task 2.2. Using the values obtained from 2.1
 x = np.zeros(6)
 x[3:] = T_hat[:3,3]
-print(x)
 R0 = T_hat[:3,:3]
 
 # Creating the residual function
@@ -99,9 +83,12 @@ resfun = lambda x : u_hat_residual(x, R0, uv, XY01T, K)
 # Minimizing the residual function
 x = least_squares(resfun, x0=x, method='lm').x
 
+# Calculate the estimated coordinates and transformation matrix
+T_hat = com.calculate_iterative_T(x, R0)
+u_hat = com.project(K, T_hat @ XY01.T)
+
 # Calculating the errors from LM-optimization
 errors = u_hat_residual(x, R0, uv, XY01T, K).reshape((-1,4))
-print(errors)
 
 normed_errors = np.linalg.norm(errors, axis=0)
 

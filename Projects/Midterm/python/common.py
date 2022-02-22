@@ -136,3 +136,25 @@ def closest_rotation_matrix(Q : ndarray)->ndarray:
   U, _, VT = np.linalg.svd(Q)
   R = U @ VT
   return R
+
+def calculate_iterative_T(
+      x  : ndarray, 
+      R0 : ndarray
+    )->ndarray:
+  if R0.shape == (3,3):
+    # Expand the dimension
+    temp = np.eye(4)
+    temp[:3,:3] = R0
+    R0 = temp
+  assert R0.shape == (4,4), "R0 must have shape 3x3 or 4x4" 
+
+  # Extracting values
+  phi, theta, psi = x[0], x[1], x[2]
+  tx, ty, tz = x[3], x[4], x[5]
+  
+  # Creating the transformation-matrix
+  R = rotate_x(phi) @ rotate_y(theta) @ rotate_z(psi) @ R0
+  T = translate(tx, ty, tz)
+
+  T[:3,:3] = R[:3,:3]
+  return T
