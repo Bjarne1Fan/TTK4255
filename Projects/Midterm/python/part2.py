@@ -46,6 +46,25 @@ if is_task_a:
 else:
   u_hat = u_hat_b
 
+
+# Iteratively optimizing the error between the current values and the optimal values
+# Extract the values from the estimates for the rotation matrix and the translation vector
+
+# Iteratively solve the problem until it converges
+# Create a resulting function using lambda
+
+#   
+#weights = all_detections[i, ::3]
+#uv = np.vstack((all_detections[i, 1::3], all_detections[i, 2::3]))
+
+# Tip: Lambda functions can be defined inside a for-loop, defining
+# a different function in each iteration. Here we pass in the current
+# image's "uv" and "weights", which get loaded at the top of the loop.
+#resfun = lambda p : quanser.residuals(uv, weights, p[0], p[1], p[2])
+
+# Tip: Use the previous image's parameter estimate as initialization
+#p = least_squares(resfun, x0=p, method='lm').x
+
 errors = np.linalg.norm(uv - u_hat, axis=0)
 
 # Print the reprojection errors requested in Task 2.1 and 2.2.

@@ -65,7 +65,6 @@ def project(
   """
   X = np.reshape(X, [X.shape[0],-1]) # Needed to support N=1
   uvw = K @ X[:3,:]
-  print(uvw)
   uvw /= uvw[2,:]
   return uvw[:2,:]
 
@@ -106,7 +105,6 @@ def estimate_H(
   n = XY.shape[1]
   A = []
   for i in range(n):
-    print(XY[:,i])
     X,Y = XY[:,i]
     x,y = xy[:,i]
     A.append(np.array([X,Y,1, 0,0,0, -X*x, -Y*x, -x]))
