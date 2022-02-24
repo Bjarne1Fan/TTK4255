@@ -7,7 +7,7 @@ from gauss_newton import jacobian2point, gauss_newton
 from quanser import Quanser
 
 image_number  = 40                        # Image to run on (must be in the range [0, 350])
-p0            = np.array([50.0, 50.0, 50.0]) # Initial parameters (yaw, pitch, roll)
+p0            = np.array([50.0, 50.0, 50.0]) * np.pi / 180 # Initial parameters (yaw, pitch, roll)
 step_size     = 0.9                       # Gauss-Newton step size
 num_steps     = 100                       # Gauss-Newton iterations
 epsilon       = 1e-6                      # Finite-difference epsilon
@@ -63,7 +63,7 @@ p = gauss_newton(
 r = resfun(p).reshape((2,-1))
 e = np.linalg.norm(r, axis=0)
 print('Reprojection errors at solution:')
-for i,e_i in enumerate(e):
+for i, e_i in enumerate(e):
   print('Marker %d: %5.02f px' % (i + 1, e_i))
 print('Average:  %5.02f px' % np.mean(e))
 print('Median:   %5.02f px' % np.median(e))

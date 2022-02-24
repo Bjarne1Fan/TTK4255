@@ -33,6 +33,8 @@ def gauss_newton(
   p_prev = p.copy()
   for iteration in range(num_steps):
     A = J.T @ J
+    if np.linalg.det(A) <= 0:
+      print("Indeterminant at iteration: ", iteration)
     # print(np.linalg.det(A))
     # print(A)
     
@@ -41,8 +43,9 @@ def gauss_newton(
     p = p + step_size * d
 
     if np.linalg.norm(p - p_prev) < tolerance:
-      print("Tolerance reached after {} iterations".format(iteration))
-      break
+      # print("Tolerance reached after {} iterations".format(iteration))
+      # break
+      pass
     p_prev = p.copy()
 
     r = resfun(p)

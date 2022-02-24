@@ -9,7 +9,7 @@ from numpy import ndarray
 from typing import Callable
 
 class Quanser:
-  def __init__(self):
+  def __init__(self)->None:
     self.K = np.loadtxt(os.path.join(sys.path[0], '../data/data/K.txt'))
     self.heli_points = np.loadtxt(os.path.join(sys.path[0], '../data/data/heli_points.txt')).T
     self.platform_to_camera = np.loadtxt(os.path.join(sys.path[0], '../data/data/platform_to_camera.txt'))
@@ -21,7 +21,7 @@ class Quanser:
         yaw     : float, 
         pitch   : float, 
         roll    : float
-      ):
+      )->ndarray:
     # Compute the helicopter coordinate frames
     base_to_platform      = com.translate(0.1145/2, 0.1145/2, 0.0) @ com.rotate_z(yaw)
     hinge_to_base         = com.translate(0.00, 0.00,  0.325) @ com.rotate_y(pitch)
@@ -38,17 +38,17 @@ class Quanser:
     uv_hat = com.project(self.K, np.hstack([p1, p2]))
     self.uv_hat = uv_hat # Save for use in draw()
 
-    r_0 = uv_hat[0] - uv[0]
-    r_1 = uv_hat[1] - uv[1]
-    r = np.hstack([r_0, r_1])
-    return r
+    # Must include the weights in the residuals. Otherwise, we would get a massive error
+    # when the camera has no observations. 
+    r = (uv_hat - uv) * weights
+    return np.hstack([r[0], r[1]])
 
   def draw(
         self          : Callable, 
         uv            : ndarray, 
         weights       : ndarray, 
         image_number  : ndarray
-      ):
+      )->None:
     I = plt.imread(os.path.join(sys.path[0], '../data/quanser/video%04d.jpg' % image_number))
     plt.imshow(I)
     plt.scatter(*uv[:, weights == 1], linewidths=1, edgecolor='black', color='white', s=80, label='Observed')

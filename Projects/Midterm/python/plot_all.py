@@ -12,7 +12,7 @@ def plot_all(
       all_r                   : ndarray, 
       detections              : ndarray, 
       subtract_initial_offset : bool
-    ):
+    )->None:
   """
   Tip: The logs have been time-synchronized with the image sequence,
   but there may be an offset between the motor angles and the vision
@@ -62,11 +62,11 @@ def plot_all(
     vis_pitch -= vis_pitch[0] - enc_pitch[0]
     vis_roll -= vis_roll[0] - enc_roll[0]
 
-  vis_fps  = 16
+  vis_fps   = 16
   enc_frame = enc_time*vis_fps
   vis_frame = np.arange(all_p.shape[0])
 
-  fig,axes = plt.subplots(3, 1, figsize=[6,6], sharex='col')
+  _, axes = plt.subplots(3, 1, figsize=[6,6], sharex='col')
   axes[0].plot(enc_frame, enc_yaw, 'k:', label='Encoder log')
   axes[0].plot(vis_frame, vis_yaw, 'k', label='Vision estimate')
   axes[0].legend()
