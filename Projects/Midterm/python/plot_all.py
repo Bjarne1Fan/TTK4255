@@ -33,6 +33,9 @@ def plot_all(
   print('- Maximum: %.04f pixels' % np.max(reprojection_errors))
   print('- Average: %.04f pixels' % np.mean(reprojection_errors))
   print('- Median: %.04f pixels' % np.median(reprojection_errors))
+  print('- Idx for maximum error: %i' % np.argmax(reprojection_errors))
+  print('- Idx for minimum error: %i' % np.argmin(reprojection_errors))
+  print(reprojection_errors.shape)
 
   #
   # Figure: Reprojection error distribution

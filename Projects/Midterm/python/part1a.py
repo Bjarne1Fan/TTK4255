@@ -6,7 +6,7 @@ import numpy as np
 from gauss_newton import jacobian2point, gauss_newton
 from quanser import Quanser
 
-image_number  = 40                        # Image to run on (must be in the range [0, 350])
+image_number  = 350                        # Image to run on (must be in the range [0, 350])
 p0            = np.array([50.0, 50.0, 50.0]) * np.pi / 180 # Initial parameters (yaw, pitch, roll)
 step_size     = 0.9                       # Gauss-Newton step size
 num_steps     = 100                       # Gauss-Newton iterations

@@ -31,12 +31,13 @@ def gauss_newton(
   J = jacfun(p0)
   p = p0.copy()
   p_prev = p.copy()
+  print(J)
   for iteration in range(num_steps):
-    A = J.T @ J
+    A = J.T @ J # Task 1.5 says that this should be singular, and that a warning should occur. This is not observed
     if np.linalg.det(A) <= 0:
       print("Indeterminant at iteration: ", iteration)
     # print(np.linalg.det(A))
-    # print(A)
+    print(A)
     
     b = -J.T @ r
     d = np.linalg.solve(A, b)
