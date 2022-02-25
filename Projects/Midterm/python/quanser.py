@@ -41,7 +41,6 @@ class Quanser:
     # Must include the weights in the residuals. Otherwise, we would get a massive error
     # when the camera has no observations. 
     r = (uv_hat - uv) * weights
-    # print(r.shape)
     return np.hstack([r[0], r[1]])
 
   def draw(
