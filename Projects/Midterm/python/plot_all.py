@@ -31,6 +31,7 @@ def plot_all(
   reprojection_errors = np.array(reprojection_errors)
   print('Reprojection error over whole image sequence:')
   print('- Maximum: %.04f pixels' % np.max(reprojection_errors))
+  print('- Minimum: %.04f pixels' % np.min(reprojection_errors))
   print('- Average: %.04f pixels' % np.mean(reprojection_errors))
   print('- Median: %.04f pixels' % np.median(reprojection_errors))
   print('- Idx for maximum error: %i' % np.argmax(reprojection_errors))

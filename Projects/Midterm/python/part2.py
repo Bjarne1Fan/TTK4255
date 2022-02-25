@@ -105,15 +105,21 @@ def LM_optimization(
 
 # Task 2.2
 u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat)
+print(T_hat)
 
 # Task 2.3
 # Removing the last measurement
 XY01T = XY01T[:,:3]
+print(uv)
 uv = uv[:,:3]
-x0 = np.array([0, 0, 0, 291, 209, 154])
+print(uv)
+x0 = np.array([0.5, 0.5, 0.5, 100, 100, 100])
 
 # Get zero error if I run this using None for x0
-u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat, x0=x0)
+# u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat, x0=x0)
+u_hat, T_hat_none, errors = LM_optimization(uv,  XY01T, K, T_hat)
+print(T_hat)
+print(T_hat_none)
 
 normed_errors = np.linalg.norm(errors, axis=0)
 
