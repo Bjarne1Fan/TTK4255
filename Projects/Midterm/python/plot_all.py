@@ -11,7 +11,8 @@ def plot_all(
       all_p                   : ndarray, 
       all_r                   : ndarray, 
       detections              : ndarray, 
-      subtract_initial_offset : bool
+      subtract_initial_offset : bool,
+      is_task_3               : bool = False
     )->None:
   """
   Tip: The logs have been time-synchronized with the image sequence,
@@ -19,6 +20,17 @@ def plot_all(
   estimates. You may optionally subtract that offset by passing True
   to subtract_initial_offset.
   """
+
+  if is_task_3:
+    # Transforming the system into a matrix consisting of residuals
+    # For task 3, this is brought in with dimension 2*N*M x 1 
+    # In our case, it is required to have it in dimension 2*N x M 
+    # 
+    all_r = all_r.T
+    temp = np.zeros((351, 14))
+    for row in range(temp.shape[0]):
+      temp[row] = all_r[14 * row : 14 * row + 14].reshape((14,))
+    all_r = temp.copy()
 
   #
   # Print reprojection error statistics

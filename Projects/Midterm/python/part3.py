@@ -4,7 +4,6 @@ from turtle import shape
 
 import matplotlib.pyplot as plt
 import numpy as np
-from prometheus_client import Counter
 import plot_all
 import common as com
 
@@ -40,7 +39,9 @@ def residual_function(
     )->ndarray:
     # Extract the values from the optimization algorithm
 
-    r = np.zeros((2,7)) # residual function stats at 0
+    # r = np.zeros((2,7)) # residual function stats at 0
+    # The residuals must have dim 2 * M * N
+    r = np.zeros((2 * 7 * 351))
 
     marks = x[:21].reshape(3, -1)
 
@@ -51,9 +52,7 @@ def residual_function(
     l5 = x[4]
    
     # x[5:25] = ?
-
     for i in range(351):
-
       roll = x[26 + 3*i]
       pitch = x[27 + 3*i]
       yaw = x[28 +3*i]
@@ -67,7 +66,7 @@ def residual_function(
       hinge_to_camera  = base_to_camera @ hinge_to_base
       arm_to_camera    = hinge_to_camera @ arm_to_hinge
       rotors_to_camera = arm_to_camera @ rotors_to_arm
-  
+
       # Compute the predicted image location of the marks
       # The first three marks corresponds to the arm, while the last four corresponds to the rotor
       # Must also have it such that the marks have dimension of 4x21
@@ -85,15 +84,15 @@ def residual_function(
 
       update_step = u_diff * w
 
-      r = r + update_step
-    r = np.hstack([r[0], r[1]])
+      r[14 * i : 14 * i + 14] = np.hstack([update_step[0], update_step[1]])
+    # r = np.hstack([r[0], r[1]])
 
     global counter 
     counter += 1
     if (counter % 100) == 0:
       print(counter)
 
-    return r
+    return r.T
     # return np.zeros((1, 26))
 
   def residual_B(      
@@ -134,7 +133,7 @@ M = 7
 
 method = 'A'
 if method == 'A':
-  x = np.zeros((Kin+3*N))
+  x = np.zeros((Kin + 3 * N))
   x[:5] = np.array([0.1145, 0.325, -0.05, 0.65, -0.03]) 
 
 elif method == 'B':
@@ -151,10 +150,10 @@ all_x = []
 weights = all_detections[:, ::3]
 uv = np.vstack((all_detections[:, 1::3], all_detections[:, 2::3]))
 
-sparsity_block = np.ones(( 2*M,3 ))
+sparsity_block = np.ones((2 * M, 3))
 state_sparsity =  np.kron(np.eye(N), sparsity_block)
 
-jac_sparsity = np.hstack( [ np.ones((2*M*N, Kin)), state_sparsity ] )
+jac_sparsity = np.hstack( [ np.ones((2 * M * N, Kin)), state_sparsity ] )
 
 resfun = lambda x : residual_function(x, uv, weights, K, heli_points, T_p_to_c, method)
 
@@ -170,7 +169,7 @@ all_x.append(x)
 all_p = np.array(all_x)
 all_r = np.array(all_r)
 # Tip: See comment in plot_all.py regarding the last argument.
-plot_all.plot_all(all_p, all_r, all_detections, subtract_initial_offset=True)
+plot_all.plot_all(all_p, all_r, all_detections, subtract_initial_offset=True, is_task_3=True)
 # plt.savefig('out_part1b.png')
 plt.show()
 
