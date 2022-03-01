@@ -169,7 +169,7 @@ all_x.append(x)
 all_p = np.array(all_x)
 all_r = np.array(all_r)
 # Tip: See comment in plot_all.py regarding the last argument.
-plot_all.plot_all(all_p, all_r, all_detections, subtract_initial_offset=True, is_task_3=True)
+plot_all.plot_all(all_p.reshape(-1), all_r, all_detections, subtract_initial_offset=True, is_task_3=True)
 # plt.savefig('out_part1b.png')
 plt.show()
 

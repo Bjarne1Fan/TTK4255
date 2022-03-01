@@ -32,15 +32,24 @@ def plot_all(
       temp[row] = all_r[14 * row : 14 * row + 14].reshape((14,))
     all_r = temp.copy()
 
+    #alter all_p to match plotting code
+    temp = np.zeros((351, 3))
+    for i in range(0, all_p.shape[0] - 26, 3):
+      temp[row] = [ all_p[ 28 + i ], all_p[ 27 + i ], all_p[26 + i ] ]
+
+    all_p = temp.copy()
   #
   # Print reprojection error statistics
   #
   weights = detections[:, ::3]
   reprojection_errors = []
+
   for i in range(all_p.shape[0]):
-    valid = np.reshape(all_r[i], [2,-1])[:, weights[i,:] == 1]
+    valid = np.reshape( all_r[i], [2,-1] )[:, weights[i,:] == 1]
     reprojection_errors.extend(np.linalg.norm(valid, axis=0))
+
   reprojection_errors = np.array(reprojection_errors)
+  
   print('Reprojection error over whole image sequence:')
   print('- Maximum: %.04f pixels' % np.max(reprojection_errors))
   print('- Minimum: %.04f pixels' % np.min(reprojection_errors))
@@ -103,3 +112,5 @@ def plot_all(
   axes[2].set_ylabel('Roll (radians)')
   axes[2].set_xlabel('Image number')
   plt.tight_layout()
+
+  plt.show()
