@@ -34,8 +34,8 @@ def plot_all(
 
     #alter all_p to match plotting code
     temp = np.zeros((351, 3))
-    for i in range(0, all_p.shape[0] - 26, 3):
-      temp[row, :] = np.array([ all_p[ 28 + i ], all_p[ 27 + i ], all_p[26 + i ] ])
+    for i in range((all_p.shape[0] - 26)//3):
+      temp[ i, :] = np.array([ all_p[ 28 + 3*i ], all_p[ 27 + 3*i ], all_p[26 + 3*i ] ])
 
     all_p = temp.copy()
   #
