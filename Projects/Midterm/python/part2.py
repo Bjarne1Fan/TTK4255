@@ -15,6 +15,13 @@ I     = plt.imread(os.path.join(sys.path[0], '../data/quanser/video0000.jpg')) #
 
 # Switch between task a) and b) for 2.1
 is_task_a = False
+is_task_3 = True
+
+if is_task_3:
+  uv = uv[:,:3]
+  XY01T = XY01T[:,:3]
+# print(uv)
+# print(XY01T)
 
 # Extracting values. Copy to prevent references destroying everything
 XY01 = XY01T.T
@@ -34,7 +41,7 @@ H = com.estimate_H(xy, XY.T)
 T_0, T_1 = com.decompose_H(H)
 
 # Extracting the one with positive z-value
-if (T_0 @ XY01)[2, 3] > 0:
+if T_0[2, 3] > 0: # Fuck me I am stupid! Here was the bug for task 2.3)!!
   T_hat = T_0 
 else:
   T_hat = T_1
@@ -44,13 +51,13 @@ u_hat_a = com.project(K, H @ XY1.T)
 u_hat_b = com.project(K, T_hat @ XY01T)
 
 # Switch between a) and b) for task 2.1
-if is_task_a:
-  u_hat = u_hat_a
-else:
-  u_hat = u_hat_b
+# if is_task_a:
+#   u_hat = u_hat_a
+# else:
+#   u_hat = u_hat_b
 
-# Calculating errors for naive implementation 
-errors = uv - u_hat
+# # Calculating errors for naive implementation 
+# errors = uv - u_hat
 
 def LM_optimization(
       uv    : ndarray,
@@ -86,7 +93,8 @@ def LM_optimization(
     x[3:] = T_hat[:3,3]
   else:
     x = x0
-  R0 = T_hat[:3,:3]
+  R0 = np.eye(4)
+  R0[:3,:3] = T_hat[:3,:3]
 
   # Creating the residual function
   resfun = lambda x : u_hat_residual(x, R0, uv, XY01T, K)
@@ -104,8 +112,8 @@ def LM_optimization(
   return u_hat, T_hat, errors
 
 # Task 2.2
-u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat)
-print(T_hat)
+# u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat)
+# print(T_hat)
 
 # Task 2.3
 # Removing the last measurement
@@ -118,7 +126,7 @@ x0 = np.array([0.5, 0.5, 0.5, 100, 100, 100])
 # Get zero error if I run this using None for x0
 # u_hat, T_hat, errors = LM_optimization(uv, XY01T, K, T_hat, x0=x0)
 u_hat, T_hat_none, errors = LM_optimization(uv,  XY01T, K, T_hat)
-print(T_hat)
+# print(T_hat)
 print(T_hat_none)
 
 normed_errors = np.linalg.norm(errors, axis=0)
