@@ -9,6 +9,7 @@ import plot_all
 import common as com
 
 from scipy.optimize import least_squares
+from scipy.linalg import block_diag
 from quanser import Quanser
 
 from typing import Callable
@@ -34,6 +35,9 @@ class ModelA:
     self.M = M
     self.N = N
 
+    self.detections = np.loadtxt(os.path.join(sys.path[0], "../data/data/detections.txt"))
+
+
   def residual_function(
       self, 
       x : np.ndarray
@@ -41,6 +45,10 @@ class ModelA:
     # The residuals must have dim 2 * M * N
     r = np.zeros((2 * self.M * self.N), dtype=float)
     # return r
+
+    # print(self.weights[0, :])
+    # print(self.weights[0, ::3])
+    # quit()
 
     # Extracting the static parameters
     l1 = x[0]
@@ -50,48 +58,59 @@ class ModelA:
     l5 = x[4]
    
     marks = x[5:self.K].reshape(3, -1)
+    marks_1 = np.vstack((marks, np.ones((1, self.M))))
 
     # Iterating over the 'dynamic' parameters
     for i in range(self.N):
-      roll = x[26 + 3 * i]
-      pitch = x[27 + 3 * i]
-      yaw = x[28 + 3 * i]
+      roll = x[self.K + 3 * i]
+      pitch = x[self.K + 1 + 3 * i]
+      yaw = x[self.K + 2 + 3 * i]
 
       # Compute the helicopter coordinate frames given the estimated states
-      base_to_platform = com.translate(l1 / 2, l1 / 2, 0.00) @ com.rotate_z(yaw)
+      base_to_platform = com.translate(l1 / 2, l1 / 2, 0.00) @ com.rotate_z(roll) # yaw
       hinge_to_base    = com.translate(0.00, 0.00,  l2) @ com.rotate_y(pitch)
       arm_to_hinge     = com.translate(0.00, 0.00, l3)
-      rotors_to_arm    = com.translate(l4, 0.00, l5) @ com.rotate_x(roll)
+      rotors_to_arm    = com.translate(l4, 0.00, l5) @ com.rotate_x(yaw) # roll
       base_to_camera   = self.T_p_to_c @ base_to_platform
       hinge_to_camera  = base_to_camera @ hinge_to_base
       arm_to_camera    = hinge_to_camera @ arm_to_hinge
       rotors_to_camera = arm_to_camera @ rotors_to_arm
 
       # Compute the predicted image location of the marks
-      arm_marks = np.vstack((marks[:,:3], np.ones(marks[:,:3].shape[1])))
-      rotor_marks = np.vstack((marks[:,3:], np.ones(marks[:,3:].shape[1])))
+      arm_marks = marks_1[:,:3]#np.vstack((marks[:,:3], np.ones(marks[:,:3].shape[1])))
+      rotor_marks = marks_1[:,3:]#np.vstack((marks[:,3:], np.ones(marks[:,3:].shape[1])))
 
       p1 = arm_to_camera @ arm_marks
       p2 = rotors_to_camera @ rotor_marks
       uv_hat = com.project(self.K_camera, np.hstack([p1, p2]))
 
-      w = self.weights[i, :]
-      u_diff = uv_hat - self.uv[i:i+1,:]
+      ui = self.detections[i, 1::3]
+      vi = self.detections[i, 2::3]
+      uv_star = np.vstack((ui, vi))
 
-      update_step = u_diff * w
+      w = self.detections[i, ::3]
+      # w = self.weights[i, :]  # Are the weights correct? 
+      # u_diff = uv_hat - self.uv[i:i+1,:] # This is incorrect! u_diff should be of size(2,7) and not size(1,7) 
 
-      r[2 * self.M * i : 2 * self.M * (i + 1)] = update_step.flatten()
-    
+      # print(self.uv[i:i+1,:])
+      # print(u_diff)
+      # quit()
+      u_diff = (w * (uv_hat - uv_star)).flatten()
+
+      # update_step = w * u_diff
+
+      r[14 * i : 14 * (i + 1)] = u_diff
+
     return r
 
   def jacobian(
       self
     ) -> np.ndarray:
     sparsity_block = np.ones((2 * self.M, 3), dtype=float)
-    state_sparsity =  np.kron(np.eye(self.N), sparsity_block)
-    return np.hstack([np.ones((2 * self.M * self.N, self.K)), state_sparsity])
+    state_sparsity = np.kron(np.eye(self.N), sparsity_block)
+    return np.hstack([np.ones((2 * self.M * self.N, self.K), dtype=float), state_sparsity])
 
-def optimize(
+def ls_optimize(
       residual  : Callable,
       x0        : np.ndarray,
       jacobian  : np.ndarray,
@@ -122,13 +141,14 @@ if __name__ == "__main__":
     M = 7
     K = 26
     N = 351
-    x_tol = 1e-4
+    x_tol = 1e-2
 
     # Setting the initial parameters, under the assumption of the lengths being 
     # approzimately known
     x0 = np.zeros((K + 3 * N), dtype=float)
     x0[:5] = np.array([0.1145, 0.325, -0.05, 0.65, -0.03]).reshape((1,-1))
     x0[5:K] = np.ones(K - 5, dtype=float)
+    x0[K:] = 0.25 * np.ones(3 * N, dtype=float)
 
     model = ModelA(
       K_camera=K_camera,
@@ -142,7 +162,7 @@ if __name__ == "__main__":
 
   jacobian = model.jacobian()
   residual = model.residual_function
-  optimization_results = optimize(
+  optimization_results = ls_optimize(
     residual=residual,
     x0=x0, 
     jacobian=jacobian,
