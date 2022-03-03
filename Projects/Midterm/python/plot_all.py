@@ -11,8 +11,10 @@ def plot_all(
       all_p                   : ndarray, 
       all_r                   : ndarray, 
       detections              : ndarray, 
-      subtract_initial_offset : bool,
-      is_task_3               : bool = False
+      subtract_initial_offset : bool#,
+      # is_task_3               : bool    = False,
+      # M                       : int     = 7,
+      # N                       : int     = 351
     )->None:
   """
   Tip: The logs have been time-synchronized with the image sequence,
@@ -21,23 +23,23 @@ def plot_all(
   to subtract_initial_offset.
   """
 
-  if is_task_3:
-    # Transforming the system into a matrix consisting of residuals
-    # For task 3, this is brought in with dimension 2*N*M x 1 
-    # In our case, it is required to have it in dimension 2*N x M 
-    # 
-    all_r = all_r.T
-    temp = np.zeros((351, 14))
-    for row in range(temp.shape[0]):
-      temp[row] = all_r[14 * row : 14 * row + 14].reshape((14,))
-    all_r = temp.copy()
+  # if is_task_3:
+  #   # Transforming the system into a matrix consisting of residuals
+  #   # For task 3, this is brought in with dimension 2*N*M x 1 
+  #   # In our case, it is required to have it in dimension 2*N x M 
+  #   # 
+  #   all_r = all_r.T
+  #   temp = np.zeros((351, 14))
+  #   for row in range(temp.shape[0]):
+  #     temp[row] = all_r[14 * row : 14 * row + 14].reshape((14,))
+  #   all_r = temp.copy()
 
-    #alter all_p to match plotting code
-    temp = np.zeros((351, 3))
-    for i in range((all_p.shape[0] - 26)//3):
-      temp[ i, :] = np.array([ all_p[ 28 + 3*i ], all_p[ 27 + 3*i ], all_p[26 + 3*i ] ])
+  #   #alter all_p to match plotting code
+  #   temp = np.zeros((351, 3))
+  #   for i in range((all_p.shape[0] - 26)//3):
+  #     temp[ i, :] = np.array([ all_p[ 28 + 3*i ], all_p[ 27 + 3*i ], all_p[26 + 3*i ] ])
 
-    all_p = temp.copy()
+  #   all_p = temp.copy()
   #
   # Print reprojection error statistics
   #
