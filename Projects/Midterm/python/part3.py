@@ -9,8 +9,8 @@ import plot_all
 import common as com
 
 from scipy.optimize import least_squares
-
 from typing import Callable
+from part1b import lm_1b
 
 class ModelA:
   def __init__(
@@ -321,7 +321,11 @@ markers = temp.copy()
 
 if __name__ == "__main__":
   # Choosing the model
-  chosen_model = 'B'
+  chosen_model = 'C'
+
+  # For testing!
+  initial_states, _ = lm_1b(plot=False)
+  initial_states = initial_states.flatten('C')
 
   if chosen_model == 'A':
     # For model A
@@ -335,7 +339,7 @@ if __name__ == "__main__":
     x0 = np.zeros((K + 3 * N), dtype=float)
     x0[:5] = np.array([0.1145, 0.325, -0.05, 0.65, -0.03]).reshape((1,-1))
     x0[5:K] = markers.reshape((1,-1)) #np.ones(K - 5, dtype=float)
-    x0[K:] = 0.5 * np.ones(3 * N, dtype=float)
+    x0[K:] = initial_states #0.5 * np.ones(3 * N, dtype=float)
 
     model = ModelA(
       K_camera=K_camera,
@@ -383,7 +387,7 @@ if __name__ == "__main__":
     ).reshape((1,-1))
     # x0[:12] = x0[:12] * np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0])   
     x0[12:K] = markers.reshape((1,-1)) #np.ones(K - 12, dtype=float)
-    x0[K:] = 0.5 * np.ones(3 * N, dtype=float)
+    x0[K:] = initial_states # 0.5 * np.ones(3 * N, dtype=float)
 
     # print(x0[:12])
     # quit()
@@ -434,7 +438,7 @@ if __name__ == "__main__":
           l[3], 0.0, l[4]
         ]).reshape((1,-1))   
     x0[18:K] = markers.reshape((1,-1)) #0.05 * np.ones(K - 18, dtype=float)
-    x0[K:] = 0.5 * np.ones(3 * N, dtype=float)
+    x0[K:] = initial_states # 0.5 * np.ones(3 * N, dtype=float)
 
     # print(x0[:12])
     # quit()
