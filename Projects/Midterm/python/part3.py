@@ -1,5 +1,3 @@
-# This is a total rework of the original work in part3.py
-
 import os
 import sys
 
@@ -17,7 +15,6 @@ class ModelA:
       self,
       K_camera    : np.ndarray,
       T_p_to_c    : np.ndarray,
-      # uv          : np.ndarray, 
       detections  : np.ndarray,
       K           : int,
       M           : int,
@@ -26,7 +23,6 @@ class ModelA:
     self.K_camera = K_camera
     self.T_p_to_c = T_p_to_c
     
-    # self.uv = uv 
     self.detections = detections
 
     self.K = K
@@ -440,9 +436,6 @@ if __name__ == "__main__":
     x0[18:K] = markers.reshape((1,-1)) #0.05 * np.ones(K - 18, dtype=float)
     x0[K:] = initial_states # 0.5 * np.ones(3 * N, dtype=float)
 
-    # print(x0[:12])
-    # quit()
-
     model = ModelC(
       K_camera=K_camera,
       T_p_to_c=T_p_to_c,
@@ -466,26 +459,14 @@ if __name__ == "__main__":
   )
   x = optimization_results.x
 
-  if chosen_model == 'A':
-    print(x[:5])
-  elif chosen_model == 'B':
-    print(x[:12])
-  elif chosen_model == 'C':
-    print(x[:18])
-
-  all_r = []
   all_x = []
-  # kinematic_states = x[:K]
   for i in range(N):
     states = x[K + 3 * i : K + 3 * (i + 1)]
     all_x.append(states)
-    # all_r.append(residual(np.hstack([kinematic_states, states])))
   all_x = np.array(all_x)
-  # all_r = np.array(all_r).reshape((N, 2 * M))
   all_r = residual(x).reshape((N, 2 * M))
   np.savetxt('all_x.txt', all_x)
   np.savetxt('all_r.txt', all_r)
-  # all_r = np.zeros((N, 2 * M)) # Fix plz!
 
   plot_all.plot_all(all_x, all_r, all_detections, subtract_initial_offset=True)
   # plt.savefig('out_part3.png')
