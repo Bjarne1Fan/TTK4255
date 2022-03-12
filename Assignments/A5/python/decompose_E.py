@@ -1,12 +1,15 @@
 import numpy as np
 
-def SE3(R,t):
-    T = np.eye(4)
-    T[:3,:3] = R
-    T[:3,3] = t
-    return T
+def SE3(
+      R : np.ndarray,
+      t : np.ndarray
+    ) -> np.ndarray:
+  T = np.eye(4)
+  T[:3,:3] = R
+  T[:3,3] = t
+  return T
 
-def decompose_E(E):
+def decompose_E(E : np.ndarray) -> np.ndarray:
     """
     Computes the four possible decompositions of E into a relative
     pose, as described in Szeliski 7.2.

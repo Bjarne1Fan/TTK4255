@@ -1,5 +1,5 @@
 import numpy as np
-from triangulate_many import *
+import triangulate_many as triangulate
 
 # Generate some random 3D points between [-5,+5] in the world frame.
 # The coordinates are rounded to integers to make it easier to read.
@@ -17,22 +17,22 @@ P2 = np.array([[ 0.9211, 0.0000, 0.3894, 0.0000],
                [-0.3894, 0.0000, 0.9211, 6.0000]])
 
 # Perspective projection.
-x1 = P1@X
-x2 = P2@X
+x1 = P1 @ X
+x2 = P2 @ X
 x1 /= x1[2]
 x2 /= x2[2]
 
-X_hat = triangulate_many(x1, x2, P1, P2)
+X_hat = triangulate.triangulate_many(xy1=x1, xy2=x2, P1=P1, P2=P2)
 
 print('True vs. estimated 3D coordinates')
 print('---------------------------------')
 for i in range(num_points):
-    print('True:', X[:,i])
-    print('Est.:', X_hat[:,i])
+  print('True:', X[:,i])
+  print('Est.:', X_hat[:,i])
 
 if X_hat.shape[0] != 4:
-    print('Triangulation is NOT GOOD. The coordinates should be homogeneous 4-vectors.')
+  print('Triangulation is NOT GOOD. The coordinates should be homogeneous 4-vectors.')
 elif np.any(np.linalg.norm(X - X_hat, axis=0) > 1e-10):
-    print('Triangulation is NOT GOOD. Estimated points do not match the true points.')
+  print('Triangulation is NOT GOOD. Estimated points do not match the true points.')
 else:
-    print('Triangulation is GOOD.')
+  print('Triangulation is GOOD.')

@@ -1,17 +1,20 @@
+import os 
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
-from figures import *
-from estimate_E import *
-from decompose_E import *
-from triangulate_many import *
-from epipolar_distance import *
-from F_from_E import *
+import figures as fig
+import estimate_E as est_E
+import decompose_E as dec_E
+import triangulate_many as triangulate
+import epipolar_distance as epi_dist
+import F_from_E 
 
-K = np.loadtxt('../data/K.txt')
-I1 = plt.imread('../data/image1.jpg')/255.0
-I2 = plt.imread('../data/image2.jpg')/255.0
-matches = np.loadtxt('../data/matches.txt')
-# matches = np.loadtxt('../data/task4matches.txt') # Part 4
+K = np.loadtxt(os.path.join(sys.path[0], '../data/K.txt'))
+I1 = plt.imread(os.path.join(sys.path[0], '../data/image1.jpg')) / 255.0
+I2 = plt.imread(os.path.join(sys.path[0], '../data/image2.jpg')) / 255.0
+matches = np.loadtxt(os.path.join(sys.path[0], '../data/matches.txt'))
+# matches = np.loadtxt(os.path.join(sys.path[0], '../data/task4matches.txt')) # Part 4
 
 uv1 = np.vstack([matches[:,:2].T, np.ones(matches.shape[0])])
 uv2 = np.vstack([matches[:,2:4].T, np.ones(matches.shape[0])])
