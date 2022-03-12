@@ -16,7 +16,7 @@ def decompose_E(E : np.ndarray) -> np.ndarray:
 
     Returns a list of 4x4 transformation matrices.
     """
-    U,_,VT = np.linalg.svd(E)
+    U, _, VT = np.linalg.svd(E)
     R90 = np.array([[0, -1, 0], [+1, 0, 0], [0, 0, 1]])
     R1 = U @ R90 @ VT
     R2 = U @ R90.T @ VT
