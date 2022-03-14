@@ -2,6 +2,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
+def hline(
+      l       : np.ndarray, 
+      **args
+    ) -> None:
+  """
+  Draws a homogeneous 2D line.
+  You must explicitly set the figure xlim, ylim before or after using this.
+  """
+
+  lim = np.array([-1e8, +1e8]) # Surely you don't have a figure bigger than this!
+  a, b, c = l
+  if np.absolute(a) > np.absolute(b):
+    x, y = -(c + b*lim) / a, lim
+  else:
+    x, y = lim, -(c + a * lim) / b
+  plt.plot(x, y, **args)
+
 def draw_correspondences(
       I1          : np.ndarray, 
       I2          : np.ndarray, 
@@ -14,7 +31,8 @@ def draw_correspondences(
   Draws a random subset of point correspondences and their epipolar lines.
   """
 
-  assert uv1.shape[0] == 3 and uv2.shape[0] == 3, 'uv1 and uv2 must be 3 x n arrays of homogeneous 2D coordinates.'
+  assert uv1.shape[0] == 3 and uv2.shape[0] == 3, \
+     'uv1 and uv2 must be 3 x n arrays of homogeneous 2D coordinates.'
   sample = np.random.choice(range(uv1.shape[1]), size=sample_size, replace=False)
   uv1 = uv1[:,sample]
   uv2 = uv2[:,sample]
@@ -51,9 +69,9 @@ def draw_point_cloud(
       X     : np.ndarray, 
       I1    : np.ndarray, 
       uv1   : np.ndarray, 
-      xlim  : np.ndarray[float, float], 
-      ylim  : np.ndarray[float, float], 
-      zlim  : np.ndarray[float, float]
+      xlim  : np.ndarray, 
+      ylim  : np.ndarray, 
+      zlim  : np.ndarray
     ) -> None:
 
   assert uv1.shape[1] == X.shape[1], '\
@@ -80,19 +98,3 @@ def draw_point_cloud(
   ax.set_zlabel('Y')
   plt.title('[Click, hold and drag with the mouse to rotate the view]')
 
-def hline(
-      l       : np.ndarray, 
-      **args
-    ) -> None:
-  """
-  Draws a homogeneous 2D line.
-  You must explicitly set the figure xlim, ylim before or after using this.
-  """
-
-  lim = np.array([-1e8, +1e8]) # Surely you don't have a figure bigger than this!
-  a, b, c = l
-  if np.absolute(a) > np.absolute(b):
-    x, y = -(c + b*lim) / a, lim
-  else:
-    x, y = lim, -(c + a * lim) / b
-  plt.plot(x, y, **args)

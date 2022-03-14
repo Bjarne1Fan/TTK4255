@@ -5,16 +5,24 @@ import triangulate_many as triangulate
 # The coordinates are rounded to integers to make it easier to read.
 num_points = 3
 np.random.seed(1)
-X = np.rint(-5.0 + 10.0*np.random.ranf(size=(4,num_points)))
+X = np.rint(-5.0 + 10.0 * np.random.ranf(size=(4,num_points)))
 X[3,:] = 1
 
 # Make up some projection matrices.
-P1 = np.array([[ 0.9211, 0.0000,-0.3894, 0.0000],
-               [ 0.0000, 1.0000, 0.0000, 0.0000],
-               [ 0.3894, 0.0000, 0.9211, 6.0000]])
-P2 = np.array([[ 0.9211, 0.0000, 0.3894, 0.0000],
-               [ 0.0000, 1.0000, 0.0000, 0.0000],
-               [-0.3894, 0.0000, 0.9211, 6.0000]])
+P1 = np.array(
+  [
+    [ 0.9211, 0.0000,-0.3894, 0.0000],
+    [ 0.0000, 1.0000, 0.0000, 0.0000],
+    [ 0.3894, 0.0000, 0.9211, 6.0000]
+  ]
+)
+P2 = np.array(
+  [
+    [ 0.9211, 0.0000, 0.3894, 0.0000],
+    [ 0.0000, 1.0000, 0.0000, 0.0000],
+    [-0.3894, 0.0000, 0.9211, 6.0000]
+  ]
+)
 
 # Perspective projection.
 x1 = P1 @ X
