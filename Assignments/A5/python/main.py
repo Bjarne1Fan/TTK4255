@@ -3,10 +3,10 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import estimate_E as est_E
-import decompose_E as dec_E
-import triangulate_many as triangulate
-import epipolar_distance as epi_dist
+import estimate_E
+import decompose_E
+import triangulate_many
+import epipolar_distance
 import F_from_E 
 import plotting
 import project
@@ -26,14 +26,14 @@ K_inv = np.linalg.inv(K)
 xy1 = project.project(arr=uv1, K_inv=K_inv)
 xy2 = project.project(arr=uv2, K_inv=K_inv)
 
-E = est_E.estimate_E(xy1=xy1, xy2=xy2)
+E = estimate_E.eight_point_algorithm(xy1=xy1, xy2=xy2)
 F = F_from_E.F_from_E(E=E, K=K)
 
 # Task 3: Triangulate 3D points
 
 # Determine which is in front of both cameras
 # Creating projection matrices
-P_matrices = dec_E.decompose_E(E)
+P_matrices = decompose_E.decompose_E(E)
 
 # Assuming that the first camera is in world frame
 P1 = np.hstack(
@@ -57,7 +57,7 @@ def determine_P2(
   # Iterate over all of the possible matrices and find the matrix with most
   # measurements in front of the camera
   for (idx, P) in enumerate(P_matrices):
-    X = triangulate.triangulate_many(
+    X = triangulate_many.triangulate_many(
       xy1=xy1, 
       xy2=xy2, 
       P1=P_world, 
@@ -81,13 +81,52 @@ def determine_P2(
 # )
 
 # Triangulate 
-# X = triangulate.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
+# X = triangulate_many.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
 
-# Task 4
-residuals = epi_dist.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
+# Task 4.1
+# residuals = epipolar_distance.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
+# plotting.draw_residual_histograms(
+#   residuals=residuals, 
+#   matrix_name="initial", 
+#   num_bins=2500,
+#   ranges=(-1500, 1500)
+# )
 
-plotting.draw_residual_histograms(residuals=residuals, matrix_name="initial")
+# Task 4.2
+E = np.zeros(3)
+inlier_set = 0
 
+num_inliers = 0
+while num_inliers < 2000:
+  E, inlier_set = estimate_E.ransac(
+    xy1=xy1, 
+    xy2=xy2,
+    uv1=uv1,
+    uv2=uv2, 
+    K=K, 
+    distance_threshold=4, 
+    num_trials=50
+  )
+  num_inliers = len(inlier_set)
+
+print(inlier_set.shape)
+
+# Extractring the measurements
+xy1 = xy1[:,inlier_set]
+xy2 = xy2[:,inlier_set]
+uv1 = uv1[:,inlier_set]
+uv2 = uv2[:,inlier_set]
+
+P_matrices = decompose_E.decompose_E(E=E)
+P2 = determine_P2(
+  P_matrices=P_matrices, 
+  P_world=P1,
+  xy1=xy1, 
+  xy2=xy2
+)
+
+
+X = triangulate_many.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
 
 
 
@@ -105,8 +144,8 @@ plotting.draw_residual_histograms(residuals=residuals, matrix_name="initial")
 # )
 
 #
-# Uncomment in Task 3
+# Uncomment in Task 3 and 4
 #
-# plotting.draw_point_cloud(X, I1, uv1, xlim=[-1,+1], ylim=[-1,+1], zlim=[1,3])
+plotting.draw_point_cloud(X, I1, uv1, xlim=[-1,+1], ylim=[-1,+1], zlim=[1,3])
 
 plt.show()

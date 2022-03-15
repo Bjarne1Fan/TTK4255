@@ -16,4 +16,11 @@ def estimate_E_ransac(
   #   sample = np.random.choice(xy1.shape[1], size=8, replace=False)
   #   E = estimate_E(xy1[:,sample], xy2[:,sample])
 
-  pass # Placeholder, replace with your implementation
+  # Defining memory
+  E = np.eye(3)
+  inlier_set = {}
+
+  for i in range(num_trials):
+    return
+
+  pass 
