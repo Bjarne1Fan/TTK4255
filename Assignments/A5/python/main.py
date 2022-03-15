@@ -93,21 +93,51 @@ def determine_P2(
 # )
 
 # Task 4.2
-E = np.zeros(3)
-inlier_set = 0
+# Stupid test for task 4.2
+# E = np.zeros(3)
+# inlier_set = 0
 
-num_inliers = 0
-while num_inliers < 2000:
-  E, inlier_set = estimate_E.ransac(
-    xy1=xy1, 
-    xy2=xy2,
-    uv1=uv1,
-    uv2=uv2, 
-    K=K, 
-    distance_threshold=4, 
-    num_trials=50
-  )
-  num_inliers = len(inlier_set)
+# num_inliers = 0
+# while num_inliers < 2000:
+#   E, inlier_set = estimate_E.ransac(
+#     xy1=xy1, 
+#     xy2=xy2,
+#     uv1=uv1,
+#     uv2=uv2, 
+#     K=K, 
+#     distance_threshold=4, 
+#     num_trials=50
+#   )
+#   num_inliers = len(inlier_set)
+
+# Task 4.4
+E, inlier_set = estimate_E.prosac(
+  xy1=xy1,
+  xy2=xy2,
+  uv1=uv1,
+  uv2=uv2, 
+  K=K, 
+  distance_threshold=4, 
+  inlier_probability=0.5,
+  success_probability=0.99
+)
+
+# E = np.zeros(3)
+# inlier_set = 0
+
+# num_inliers = 0
+# while num_inliers < 1000:
+#   E, inlier_set = estimate_E.prosac(
+#     xy1=xy1, 
+#     xy2=xy2,
+#     uv1=uv1,
+#     uv2=uv2, 
+#     K=K, 
+#     distance_threshold=4.0, 
+#     inlier_probability=0.5,
+#     success_probability=0.99
+#   )
+#   num_inliers = len(inlier_set)
 
 print(inlier_set.shape)
 
