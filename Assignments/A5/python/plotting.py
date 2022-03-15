@@ -98,3 +98,32 @@ def draw_point_cloud(
   ax.set_zlabel('Y')
   plt.title('[Click, hold and drag with the mouse to rotate the view]')
 
+def draw_residual_histograms(
+      residuals   : np.ndarray, 
+      matrix_name : str,
+      num_bins    : int         =5000
+    ) -> None:
+  assert residuals.shape[0] == 2, "Incorrect shape"
+
+  norm_residuals = np.linalg.norm(residuals, axis=1)
+  avg_residuals = np.mean(residuals, axis=1)
+  n = residuals.shape[1]
+
+  fig, axs = plt.subplots(3, 1, sharey=True, tight_layout=True)
+  fig.suptitle(
+    "Histogram for residual errors using {} essential matrix for {} number of values".format(
+      matrix_name,
+      residuals.shape[1] 
+    )
+  )
+  axs[0].set_title("e1")
+  axs[0].hist(residuals[0,:], bins=num_bins, range=(-2000,2000))
+
+  axs[1].set_title("e2")
+  axs[1].hist(residuals[1,:], bins=num_bins, range=(-2000,2000))
+
+  axs[2].set_title("Two-norm of residuals")
+  axs[2].hist(norm_residuals, bins=num_bins, range=(-2000,2000))
+
+  axs[3].set_title("Average of residuals")
+  axs[3].hist(avg_residuals, bins=num_bins, range=(-2000,2000))

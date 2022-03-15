@@ -86,15 +86,9 @@ def determine_P2(
 # Task 4
 residuals = epi_dist.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
 
-fig = plt.figure()
-fig.suptitle(
-  "Histogram for residual errors using {} essential matrix for {} number of values".format(
-    "initial",
-    residuals.flatten().shape[0] 
-  )
-)
+plotting.draw_residual_histograms(residuals=residuals, matrix_name="initial")
 
-plt.hist(x=residuals.flatten(), bins=np.arange(0, len(residuals.flatten())))
+
 
 
 #
