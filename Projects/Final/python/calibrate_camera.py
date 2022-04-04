@@ -7,9 +7,11 @@
 import os 
 import sys
 
+import warnings
 import numpy as np
 import cv2 as cv
 import glob
+
 from os.path import join, basename, realpath, dirname, exists, splitext
 
 def calibrate() -> tuple:
@@ -66,8 +68,8 @@ def calibrate() -> tuple:
       if not image_size:
         image_size = I.shape
       elif I.shape != image_size:
-        print('Image size is not identical for all images.')
-        print('Check image "%s" against the other images.' % basename(image_path))
+        warnings.warn_explicit('Image size is not identical for all images.')
+        warnings.warn_explicit('Check image "%s" against the other images.' % basename(image_path))
         quit()
 
       ok, u = cv.findChessboardCorners(I, (board_size[0],board_size[1]), detect_flags)
@@ -107,8 +109,67 @@ def calibrate() -> tuple:
   np.savetxt(join(output_folder, 'std_int.txt'), std_int) # Standard deviations of intrinsics (entries in K and distortion coefficients)
   print('Calibration data is saved in the folder "%s"' % realpath(output_folder))
 
-  return results
+def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
+  """
+  This method tries to undistort an image, multiplying the 
+  obtained standard deviations with n_sigma. Only the distortion
+  parameters are affected.
+  """
 
+  def resize_with_aspect_ratio(
+        image   : np.ndarray, 
+        width   : int         = None, 
+        height  : int         = None, 
+        inter   :int          = cv.INTER_AREA
+      ) -> np.ndarray:
+    # From SO:
+    # https://stackoverflow.com/questions/35180764/opencv-python-image-too-big-to-display?fbclid=IwAR1WQrO2nbWIHFwkHNrYpxZf2hbv1Xzq7AmF420q22vAquxTlwkVlsVR3K8
+    
+    dim = None
+    (h, w) = image.shape[:2]
+
+    if width is None and height is None:
+      return image
+    if width is None:
+      r = height / float(h)
+      dim = (int(w * r), height)
+    else:
+      r = width / float(w)
+      dim = (width, int(h * r))
+
+    return cv.resize(image, dim, interpolation=inter)
+
+  folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
+
+  K                       = np.loadtxt(join(folder, 'K.txt'))
+  distortion_coefficients = np.loadtxt(join(folder, 'dc.txt'))
+  std_int                 = np.loadtxt(join(folder, 'std_int.txt'))
+  u_all                   = np.load(join(folder, 'u_all.npy'))
+  image_size              = np.loadtxt(join(folder, 'image_size.txt')).astype(np.int32) # height,width
+  mean_errors             = np.loadtxt(join(folder, 'mean_errors.txt'))
+
+  # Extract components of intrinsics standard deviation vector. See:
+  # https://docs.opencv.org/master/d9/d0c/group__calib3d.html#ga3207604e4b1a1758aa66acb6ed5aa65d
+  k1, k2, p1, p2, k3 = distortion_coefficients[:]
+  _, _, _, _, k1_std, k2_std, p1_std, p2_std, k3_std, _, _, _, _, _, _, _, _, _ = std_int
+
+  image_path_pattern = os.path.join(sys.path[0], '../data/hw5_ext/calibration/*.jpg')
+  distorted_image = cv.imread(glob.glob(image_path_pattern)[21])
+
+  # Undistorting with the original 
+  undistorted_image = cv.undistort(
+    src=distorted_image,
+    cameraMatrix=K, 
+    distCoeffs=np.array([k1, k2, p1, p2, k3]) + np.array([k1_std, k2_std, p1_std, p2_std, k3_std]) * n_sigma
+  )
+
+  print(distorted_image.shape)
+
+  resized_image = resize_with_aspect_ratio(undistorted_image, height=1000)
+  cv.imshow('Undistorted image', resized_image)
+  cv.waitKey(0)
+
+  return undistorted_image
 
 if __name__ == '__main__':
-  calibrate()
+  test_camera_distortion_n_sigma(n_sigma=3.0)

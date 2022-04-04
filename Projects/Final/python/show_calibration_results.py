@@ -8,12 +8,12 @@ from os.path import join
 def show_results():
   folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
 
-  K           = np.loadtxt(join(folder, 'K.txt'))
-  dc          = np.loadtxt(join(folder, 'dc.txt'))
-  std_int     = np.loadtxt(join(folder, 'std_int.txt'))
-  u_all       = np.load(join(folder, 'u_all.npy'))
-  image_size  = np.loadtxt(join(folder, 'image_size.txt')).astype(np.int32) # height,width
-  mean_errors = np.loadtxt(join(folder, 'mean_errors.txt'))
+  K                       = np.loadtxt(join(folder, 'K.txt'))
+  distortion_coefficients = np.loadtxt(join(folder, 'dc.txt'))
+  std_int                 = np.loadtxt(join(folder, 'std_int.txt'))
+  u_all                   = np.load(join(folder, 'u_all.npy'))
+  image_size              = np.loadtxt(join(folder, 'image_size.txt')).astype(np.int32) # height,width
+  mean_errors             = np.loadtxt(join(folder, 'mean_errors.txt'))
 
   # Extract components of intrinsics standard deviation vector. See:
   # https://docs.opencv.org/master/d9/d0c/group__calib3d.html#ga3207604e4b1a1758aa66acb6ed5aa65d
@@ -31,11 +31,11 @@ def show_results():
   print()
   print('Distortion coefficients')
   print('--------------------------------')
-  print('k1:%13.5f +/- %.5f' % (dc[0], k1))
-  print('k2:%13.5f +/- %.5f' % (dc[1], k2))
-  print('k3:%13.5f +/- %.5f' % (dc[4], k3))
-  print('p1:%13.5f +/- %.5f' % (dc[2], p1))
-  print('p2:%13.5f +/- %.5f' % (dc[3], p2))
+  print('k1:%13.5f +/- %.5f' % (distortion_coefficients[0], k1))
+  print('k2:%13.5f +/- %.5f' % (distortion_coefficients[1], k2))
+  print('k3:%13.5f +/- %.5f' % (distortion_coefficients[4], k3))
+  print('p1:%13.5f +/- %.5f' % (distortion_coefficients[2], p1))
+  print('p2:%13.5f +/- %.5f' % (distortion_coefficients[3], p2))
   print('--------------------------------')
   print()
   print('The number after "+/-" is the standard deviation.')
