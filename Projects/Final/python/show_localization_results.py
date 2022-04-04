@@ -4,12 +4,15 @@
 # this script to work with your data.
 #
 
+import os 
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
-from draw_point_cloud import *
+import draw_point_cloud 
 
-model = '../example_localization'
-query = '../example_localization/query/IMG_8210'
+model = os.path.join(sys.path[0], '../example_localization')
+query = os.path.join(sys.path[0], '../example_localization/query/IMG_8210')
 
 # 3D points [4 x num_points].
 X = np.loadtxt(f'{model}/X.txt')
@@ -30,10 +33,13 @@ xlim = [-10,+10]
 ylim = [-10,+10]
 zlim = [0,+20]
 
-frame_size = 1;
+frame_size = 1
 marker_size = 5
 
 plt.figure('3D point cloud', figsize=(6,6))
-draw_point_cloud(X, T_m2q, xlim, ylim, zlim, colors=colors, marker_size=marker_size, frame_size=frame_size)
+draw_point_cloud.draw_point_cloud(
+  X, T_m2q, xlim, ylim, zlim, 
+  colors=colors, marker_size=marker_size, frame_size=frame_size
+)
 plt.tight_layout()
 plt.show()

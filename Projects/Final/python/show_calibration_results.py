@@ -1,8 +1,11 @@
+import os
+import sys
+
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join
 
-folder = '../data_hw5_ext/calibration'
+folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
 
 K           = np.loadtxt(join(folder, 'K.txt'))
 dc          = np.loadtxt(join(folder, 'dc.txt'))
@@ -48,7 +51,7 @@ plt.ylabel('Mean error (pixels)')
 
 plt.subplot(122)
 for i in range(u_all.shape[0]):
-    plt.scatter(u_all[i, :, 0, 0], u_all[i, :, 0, 1], marker='.')
+  plt.scatter(u_all[i, :, 0, 0], u_all[i, :, 0, 1], marker='.')
 plt.axis('image')
 plt.xlim([0, image_size[1]])
 plt.ylim([image_size[0], 0])

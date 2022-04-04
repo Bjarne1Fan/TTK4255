@@ -1,10 +1,14 @@
+import os 
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 as cv
 from matlab_inspired_interface import match_features, show_matched_features
 
-I1 = cv.imread('../data_hw5_ext/IMG_8210.jpg', cv.IMREAD_GRAYSCALE)
-I2 = cv.imread('../data_hw5_ext/IMG_8211.jpg', cv.IMREAD_GRAYSCALE)
+
+I1 = cv.imread(os.path.join(sys.path[0], '../data/hw5_ext/IMG_8210.jpg'), cv.IMREAD_GRAYSCALE)
+I2 = cv.imread(os.path.join(sys.path[0], '../data/hw5_ext/IMG_8211.jpg'), cv.IMREAD_GRAYSCALE)
 
 # NB! This script uses a very small number of features so that it runs quickly.
 # You will want to pass other options to SIFT_create. See the documentation:
