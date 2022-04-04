@@ -22,8 +22,8 @@ cy = 1059.63818
 k1 = -0.06652
 k2 = +0.06534
 k3 = -0.07555
-p1 = +0.00065
-p2 = -0.00419
+p1 = +0.0#0065
+p2 = -0.0#0419
 
 # Estimated standard deviations
 # Multiply these by 1.96 to get the half-width of the 95% confidence interval
