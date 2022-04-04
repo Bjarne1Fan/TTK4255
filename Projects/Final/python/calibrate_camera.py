@@ -154,7 +154,7 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
   _, _, _, _, k1_std, k2_std, p1_std, p2_std, k3_std, _, _, _, _, _, _, _, _, _ = std_int
 
   image_path_pattern = os.path.join(sys.path[0], '../data/hw5_ext/calibration/*.jpg')
-  distorted_image = cv.imread(glob.glob(image_path_pattern)[21])
+  distorted_image = cv.imread(glob.glob(image_path_pattern)[53])
 
   # Undistorting with the original 
   undistorted_image = cv.undistort(
@@ -165,11 +165,12 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
 
   print(distorted_image.shape)
 
-  resized_image = resize_with_aspect_ratio(undistorted_image, height=1000)
+  resized_image = resize_with_aspect_ratio(undistorted_image, height=800)
   cv.imshow('Undistorted image', resized_image)
   cv.waitKey(0)
 
   return undistorted_image
 
 if __name__ == '__main__':
+  calibrate()
   test_camera_distortion_n_sigma(n_sigma=3.0)
