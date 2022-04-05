@@ -8,8 +8,7 @@ import numpy as np
 import warnings
 import cv2
 import calibrate_camera
-# from assignment_5 import decompose_E, epipolar_distance, estimate_E, F_from_E, plotting, project, triangulate_many
-import decompose_E, epipolar_distance, estimate_E, F_from_E, plotting, project, triangulate_many
+import common, estimate_E, plotting
 from matlab_inspired_interface import match_features, show_matched_features
 
 def match_raw(I1, I2) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -62,8 +61,8 @@ def ransac(
   """
   K_inv = np.linalg.inv(K)
 
-  xy1 = project.project(arr=uv1, K_inv=K_inv)
-  xy2 = project.project(arr=uv2, K_inv=K_inv)
+  xy1 = common.project(arr=uv1, K_inv=K_inv)
+  xy2 = common.project(arr=uv2, K_inv=K_inv)
 
   E, inlier_set = estimate_E.ransac(
     xy1=xy1, 
@@ -77,41 +76,6 @@ def ransac(
 
   return E, inlier_set
 
-def determine_P2(
-      P_matrices  : list,
-      P_world     : np.ndarray,
-      xy1         : np.ndarray,
-      xy2         : np.ndarray
-    ) -> np.ndarray:
-
-  assert isinstance(P_matrices, list), "Input must be a list"
-  assert isinstance(P_matrices[0], np.ndarray), "Input must be a list of ndarrays"
-  
-  pos_z = 0
-  best_idx = 0
-
-  # Iterate over all of the possible matrices and find the matrix with most
-  # measurements in front of the camera
-  for (idx, P) in enumerate(P_matrices):
-    X = triangulate_many.triangulate_many(
-      xy1=xy1, 
-      xy2=xy2, 
-      P1=P_world, 
-      P2=P
-    )
-    
-    # Find maximum points with a positive z-value (in front of the camera)
-    num_pos_z = np.sum(((P @ X)[2] >= 0))
-    if num_pos_z >= pos_z:
-      pos_z = num_pos_z
-      best_idx = idx
-
-  return P_matrices[best_idx]
-
-def closest_rotation_matrix(Q: np.ndarray) -> np.ndarray:
-  U, _, VT = np.linalg.svd(Q)
-  R = U @ VT
-  return R
 
 if __name__ == '__main__':
   # Choose these later - currently just using the default images
@@ -138,11 +102,11 @@ if __name__ == '__main__':
   # of the second camera - using these will cause poor estimates to have far 
   # too large impact on the performance
 
-  xy1 = project.project(arr=uv1, K_inv=K_inv)
-  xy2 = project.project(arr=uv2, K_inv=K_inv)
+  xy1 = common.project(arr=uv1, K_inv=K_inv)
+  xy2 = common.project(arr=uv2, K_inv=K_inv)
 
   E, inlier_set = ransac(uv1=uv1, uv2=uv2, K=K)
-  F = F_from_E.F_from_E(E, K)
+  F = common.F_from_E(E, K)
 
   print(np.sum(inlier_set == 1))
 
@@ -151,10 +115,10 @@ if __name__ == '__main__':
   xy2 = xy2[inlier_set]
 
   P1 = np.hstack([np.eye(3), np.zeros((3, 1))])
-  P_matrices = decompose_E.decompose_E(E)
-  P2 = determine_P2(P_matrices=P_matrices, P_world=P1, xy1=xy1, xy2=xy2)
+  P_matrices = common.decompose_E(E)
+  P2 = common.find_optimal_pose(P_matrices=P_matrices, P_world=P1, xy1=xy1, xy2=xy2)
 
-  R2 = closest_rotation_matrix(P2[:3,:3])
+  R2 = common.closest_rotation_matrix(P2[:3,:3])
   t2 = P2[:3,-1]
 
   print(R2)
@@ -162,7 +126,7 @@ if __name__ == '__main__':
   print(t2)
 
   # Get the features in world frame (camera 1)
-  X1 = triangulate_many.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
+  X1 = common.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
 
   # Save the detected features in world frame
 

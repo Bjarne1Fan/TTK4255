@@ -14,6 +14,7 @@ import glob
 
 from os.path import join, basename, realpath, dirname, exists, splitext
 
+
 def calibrate() -> tuple:
   # This string should point to the folder containing the images
   # used for calibration. The same folder will hold the output.
@@ -109,11 +110,13 @@ def calibrate() -> tuple:
   np.savetxt(join(output_folder, 'std_int.txt'), std_int) # Standard deviations of intrinsics (entries in K and distortion coefficients)
   print('Calibration data is saved in the folder "%s"' % realpath(output_folder))
 
-def resize_with_aspect_ratio(
+
+
+def __resize_with_aspect_ratio(
       image   : np.ndarray, 
       width   : int         = None, 
       height  : int         = None, 
-      inter   :int          = cv.INTER_AREA
+      inter   : int         = cv.INTER_AREA
     ) -> np.ndarray:
   # From SO:
   # https://stackoverflow.com/questions/35180764/opencv-python-image-too-big-to-display?fbclid=IwAR1WQrO2nbWIHFwkHNrYpxZf2hbv1Xzq7AmF420q22vAquxTlwkVlsVR3K8
@@ -183,7 +186,7 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
 
   print(distorted_image.shape)
 
-  resized_image = resize_with_aspect_ratio(undistorted_image, height=800)
+  resized_image = __resize_with_aspect_ratio(undistorted_image, height=800)
   cv.imshow('Undistorted image', resized_image)
   cv.waitKey(0)
 

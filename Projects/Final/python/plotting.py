@@ -19,6 +19,7 @@ def hline(
     x, y = lim, -(c + a * lim) / b
   plt.plot(x, y, **args)
 
+
 def draw_correspondences(
       I1          : np.ndarray, 
       I2          : np.ndarray, 
@@ -65,38 +66,46 @@ def draw_correspondences(
   plt.tight_layout()
   plt.suptitle('Point correspondences and associated epipolar lines (showing %d pairs)' % sample_size)
 
-def draw_point_cloud(
-      X     : np.ndarray, 
-      I1    : np.ndarray, 
-      uv1   : np.ndarray, 
-      xlim  : np.ndarray, 
-      ylim  : np.ndarray, 
-      zlim  : np.ndarray
+
+def draw_frame(
+      ax    : plt.Axes,  
+      T     : np.ndarray, 
+      scale : float
     ) -> None:
+  X0 = T @ np.array((0,0,0,1))
+  X1 = T @ np.array((1,0,0,1))
+  X2 = T @ np.array((0,1,0,1))
+  X3 = T @ np.array((0,0,1,1))
+  ax.plot([X0[0], X1[0]], [X0[2], X1[2]], [X0[1], X1[1]], color='#FF7F0E')
+  ax.plot([X0[0], X2[0]], [X0[2], X2[2]], [X0[1], X2[1]], color='#2CA02C')
+  ax.plot([X0[0], X3[0]], [X0[2], X3[2]], [X0[1], X3[1]], color='#1F77B4')
 
-  assert uv1.shape[1] == X.shape[1], '\
-    If you get this error message in Task 4,\
-    it probably means that you did not extract the inliers of all the arrays (uv1,uv2,xy1,xy2)\
-    before calling draw_point_cloud.'
 
-  # We take I1 and uv1 as arguments in order to assign a color to each
-  # 3D point, based on its pixel coordinates in one of the images.
-  c = I1[uv1[1,:].astype(np.int32), uv1[0,:].astype(np.int32), :]
-
-  # Matplotlib doesn't let you easily change the up-axis to match the
-  # convention we use in the course (it assumes Z is upward). So this
-  # code does a silly rearrangement of the Y and Z arguments.
-  plt.figure('3D point cloud', figsize=(6,6))
+def draw_point_cloud(
+      X           : np.ndarray, 
+      T_m2q       : np.ndarray, 
+      xlim        : float, 
+      ylim        : float, 
+      zlim        : float,  
+      colors      : np.ndarray, 
+      marker_size : float, 
+      frame_size  : float
+    ) -> None:
   ax = plt.axes(projection='3d')
-  ax.scatter(X[0,:], X[2,:], X[1,:], c=c, marker='.', depthshade=False)
+  ax.set_box_aspect((1, 1, 1))
+  if colors.max() > 1.1:
+    colors = colors.copy() / 255
+  ax.scatter(X[0,:], X[2,:], X[1,:], c=colors, marker='.', s=marker_size, depthshade=False)
+  draw_frame(ax, np.linalg.inv(T_m2q), scale=frame_size)
   ax.grid(False)
   ax.set_xlim(xlim)
-  ax.set_ylim(zlim)               # Is this correct?????
-  ax.set_zlim([ylim[1], ylim[0]]) # Is this correct?????
+  ax.set_ylim(zlim)
+  ax.set_zlim([ylim[1], ylim[0]])
   ax.set_xlabel('X')
   ax.set_ylabel('Z')
   ax.set_zlabel('Y')
   plt.title('[Click, hold and drag with the mouse to rotate the view]')
+
 
 def draw_residual_histograms(
       residuals   : np.ndarray, 

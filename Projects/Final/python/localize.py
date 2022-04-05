@@ -3,7 +3,8 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import draw_point_cloud 
+
+import plotting
 
 def localize(I1 : np.ndarray, I2 : np.ndarray, K :np.ndarray, X : np.ndarray) -> None:
   """
@@ -38,7 +39,7 @@ def localize(I1 : np.ndarray, I2 : np.ndarray, K :np.ndarray, X : np.ndarray) ->
   marker_size = 5
 
   plt.figure('3D point cloud', figsize=(6,6))
-  draw_point_cloud.draw_point_cloud(
+  plotting.draw_point_cloud(
     X, T_m2q, xlim, ylim, zlim, 
     colors=colors, marker_size=marker_size, frame_size=frame_size
   )

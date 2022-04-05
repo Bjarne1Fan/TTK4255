@@ -1,9 +1,9 @@
 import calibrate_camera
-import show_calibration_results
+import show_results
 
 def task_1_1():
   calibrate_camera.calibrate()
-  show_calibration_results.show_results()
+  show_results.show_calibration_results()
 
 def task_1_2():
   calibrate_camera.test_camera_distortion_n_sigma(n=3.0)
