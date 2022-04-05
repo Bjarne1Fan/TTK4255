@@ -72,7 +72,7 @@ def ransac(
 
     if i % 100 == 0 and i > 0:
       print(i)
-  inlier_set = np.where(inlier_set == True)[0]
+  inlier_set = np.nonzero(inlier_set)[0]
 
   return E, inlier_set 
 
