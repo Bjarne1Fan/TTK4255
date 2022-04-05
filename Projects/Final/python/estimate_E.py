@@ -1,9 +1,7 @@
-import numpy as np
-
-import epipolar_distance
-import F_from_E
-
+import common
 import math
+
+import numpy as np
 
 def eight_point_algorithm(
       xy1 : np.ndarray, 
@@ -57,7 +55,7 @@ def ransac(
 
     # Calculate the fundamental matrix and the residuals
     F = K_inv.T @ E @ K_inv #F_from_E.F_from_E(E=E, K=K)
-    residuals = epipolar_distance.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
+    residuals = common.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
     inliers = np.abs(residuals) < distance_threshold
     num_inliers = np.sum(inliers)
     #avg_residuals = 1/2.0 * (residuals[0,:] + residuals[1,:])
@@ -107,8 +105,8 @@ def prosac(
     estimated_E = eight_point_algorithm(xy1[:,sample], xy2[:,sample])
 
     # Calculate the fundamental matrix and the residuals
-    F = F_from_E.F_from_E(E=E, K=K)
-    residuals = epipolar_distance.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
+    F = common.F_from_E(E=E, K=K)
+    residuals = common.epipolar_distance(F=F, uv1=uv1, uv2=uv2)
     avg_residuals = 1/2.0 * (residuals[0,:] + residuals[1,:])
     abs_avg_residuals = np.abs(avg_residuals)
 

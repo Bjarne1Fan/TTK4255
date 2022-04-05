@@ -1,5 +1,4 @@
 import os
-from secrets import randbelow 
 import sys
 
 import matplotlib.pyplot as plt
@@ -42,11 +41,11 @@ def match_raw(I1, I2) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
   plt.figure()
   show_matched_features(I1, I2, best_keypoints_1, best_keypoints_2, method='montage')
 
-  return best_index_pairs, best_matches, keypoints_1, best_keypoints_2
+  return best_index_pairs, best_matches, best_keypoints_1, best_keypoints_2
   # return index_pairs, match_metric, keypoints_1, keypoints_2
 
 
-def ransac(
+def __ransac(
       uv1     : np.ndarray,
       uv2     : np.ndarray,
       K       : np.ndarray
@@ -105,7 +104,7 @@ if __name__ == '__main__':
   xy1 = common.project(arr=uv1, K_inv=K_inv)
   xy2 = common.project(arr=uv2, K_inv=K_inv)
 
-  E, inlier_set = ransac(uv1=uv1, uv2=uv2, K=K)
+  E, inlier_set = __ransac(uv1=uv1, uv2=uv2, K=K)
   F = common.F_from_E(E, K)
 
   print(np.sum(inlier_set == 1))
@@ -115,8 +114,13 @@ if __name__ == '__main__':
   xy2 = xy2[inlier_set]
 
   P1 = np.hstack([np.eye(3), np.zeros((3, 1))])
-  P_matrices = common.decompose_E(E)
-  P2 = common.find_optimal_pose(P_matrices=P_matrices, P_world=P1, xy1=xy1, xy2=xy2)
+  pose_matrices = common.decompose_E(E)
+  P2 = common.find_optimal_pose(
+    pose_matrices=pose_matrices, 
+    pose_world=P1, 
+    xy1=xy1, 
+    xy2=xy2
+  )
 
   R2 = common.closest_rotation_matrix(P2[:3,:3])
   t2 = P2[:3,-1]
