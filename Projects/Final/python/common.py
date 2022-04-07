@@ -20,19 +20,18 @@ def epipolar_distance(
       uv1 : np.ndarray, 
       uv2 : np.ndarray
     ) -> np.ndarray:
-  n = uv1.shape[1]
-  e = np.zeros((2, n))
-
-  for pt in range(n):
-    u1 = uv1[:, pt]
-    u2 = uv2[:, pt]
-
-    e1 = (u1.T @ F.T @ u2) / np.linalg.norm(F.T @ u2)
-    e2 = (u2.T @ F @ u1) / np.linalg.norm(F @ u1)
-
-    e[:, pt] = np.hstack([e1, e2])
-
-  return e
+  """
+  Using the solution from assignment 5
+  """
+  l2 = F @ uv1
+  l1 = F.T @ uv2
+  
+  e = np.sum(uv2*l2, axis=0)
+  
+  norm1 = np.linalg.norm(l1[:2,:], axis=0)
+  norm2 = np.linalg.norm(l2[:2,:], axis=0)
+  
+  return 0.5 * e * (1 / norm1 + 1 / norm2)
 
 
 def __SE3(
@@ -99,18 +98,18 @@ def triangulate_many(
   X = np.zeros((4, n))
 
   # Iterating over all points
-  for ptn in range(n):
+  for i in range(n):
     # Creating A-matrix and solving it using SVD
     A = np.array(
       [
-        xy1[0, ptn] * P1[2,:] - P1[0,:], 
-        xy1[1, ptn] * P1[2,:] - P1[1,:], 
-        xy2[0, ptn] * P2[2,:] - P2[0,:], 
-        xy2[1, ptn] * P2[2,:] - P2[1,:]
+        xy1[0, i] * P1[2,:] - P1[0,:], 
+        xy1[1, i] * P1[2,:] - P1[1,:], 
+        xy2[0, i] * P2[2,:] - P2[0,:], 
+        xy2[1, i] * P2[2,:] - P2[1,:]
       ]
     )
     _, _, V_T = np.linalg.svd(A)
-    X[:, ptn] = V_T[-1]
+    X[:, i] = V_T[-1]
 
   # Normalize the matrix
   return X / X[-1]

@@ -1,5 +1,8 @@
+from msilib.schema import Error
 import os
+from random import sample
 import sys
+from typing import Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,17 +13,36 @@ import calibrate_camera
 import common, estimate_E, plotting
 from matlab_inspired_interface import match_features, show_matched_features
 
-def __match_raw(I1, I2) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-  # Documentation: https://docs.opencv.org/4.x/d7/d60/classcv_1_1SIFT.html
-  sift = cv2.SIFT_create(
-    nfeatures=50000, 
-    contrastThreshold=0.1,
-    edgeThreshold=20
-  )
-  keypoints_1, descriptors_1 = sift.detectAndCompute(I1, None)
-  keypoints_2, descriptors_2 = sift.detectAndCompute(I2, None)
-  keypoints_1 = np.array([kp.pt for kp in keypoints_1])
-  keypoints_2 = np.array([kp.pt for kp in keypoints_2])
+class ExtractFeaturesSIFT:
+  def __init__(
+        self,
+        n_features          : int,
+        contrast_threshold  : float,
+        edge_threshold      : float 
+      ) -> None:
+    # Documentation: https://docs.opencv.org/4.x/d7/d60/classcv_1_1SIFT.html
+    self.sift = cv2.SIFT_create(
+      nfeatures=0, 
+      contrastThreshold=0.05,
+      edgeThreshold=25
+    )
+
+  def extract_features(self, image : np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Returns the keypoints and the descriptors from an image
+    """
+    keypoints, descriptors = self.sift.detectAndCompute(image, None)
+    keypoints = np.array([kp.pt for kp in keypoints])
+    return keypoints, descriptors
+
+
+def __match_raw(
+      I1 : np.ndarray, 
+      I2 : np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+  sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
+  keypoints_1, descriptors_1 = sift.extract_features(image=I1)
+  keypoints_2, descriptors_2 = sift.extract_features(image=I2)
 
   index_pairs, match_metric = match_features(
     descriptors_1, 
@@ -41,15 +63,14 @@ def __match_raw(I1, I2) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
   plt.figure()
   show_matched_features(I1, I2, best_keypoints_1, best_keypoints_2, method='montage')
 
-  # return best_index_pairs, best_matches, best_keypoints_1, best_keypoints_2
   return keypoints_1[index_pairs[:,0]], keypoints_2[index_pairs[:,1]]
-  # return index_pairs, match_metric, keypoints_1, keypoints_2
-
 
 def __ransac(
-      uv1     : np.ndarray,
-      uv2     : np.ndarray,
-      K       : np.ndarray
+      xy1 : np.ndarray,
+      xy2 : np.ndarray,
+      uv1 : np.ndarray,
+      uv2 : np.ndarray,
+      K   : np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
   """
   Assuming that the camera is calibrated in the previous task.
@@ -59,10 +80,14 @@ def __ransac(
 
   Returns the essential matrix and the full inlier set
   """
-  K_inv = np.linalg.inv(K)
 
-  xy1 = common.project(arr=uv1, K_inv=K_inv)
-  xy2 = common.project(arr=uv2, K_inv=K_inv)
+  num_trials = estimate_E.calculate_num_ransac_trials(
+    sample_size=xy1.shape[0],
+    confidence=0.99,
+    inlier_fraction=0.5 # Assuming that the same inlier fraction as assignment 5 can be used
+  )
+  # Hardcoded, as the function gave really low values 
+  num_trials = 2000
 
   E, inlier_set = estimate_E.ransac(
     xy1=xy1, 
@@ -71,37 +96,23 @@ def __ransac(
     uv2=uv2, 
     K=K, 
     distance_threshold=4, 
-    num_trials=2000       # Hardcoded 
+    num_trials=num_trials 
   )
 
   return E, inlier_set
 
 
 def two_view_reconstruction(
-      I1_path_str                 : str = '../data/hw5_ext/IMG_8210.jpg',
-      I2_path_str                 : str = '../data/hw5_ext/IMG_8211.jpg',
-      calibration_folder_path_str : str = '../data/hw5_ext/calibration/'
+      I1_path_str                 : str   = '../data/hw5_ext/IMG_8210.jpg',
+      I2_path_str                 : str   = '../data/hw5_ext/IMG_8211.jpg',
+      calibration_folder_path_str : str   = '../data/hw5_ext/calibration/'
     ) -> None:
-  # Choose these later - currently just using the default images
+  # Currently just using the initial images
   I1 = cv2.imread(os.path.join(sys.path[0], I1_path_str), cv2.IMREAD_GRAYSCALE)
   I2 = cv2.imread(os.path.join(sys.path[0], I2_path_str), cv2.IMREAD_GRAYSCALE)
 
-  # Assuming that the same camera-parameters from task 1 are still valid
-  distortion_coefficients = np.loadtxt(os.path.join(sys.path[0], "".join([calibration_folder_path_str, 'dc.txt'])))
   K = np.loadtxt(os.path.join(sys.path[0], "".join([calibration_folder_path_str, 'K.txt'])))
-  K_inv = np.linalg.inv(K)
-
-  # Undistorting image
-  I1 = calibrate_camera.undistort_image(
-    distorted_image=I1, 
-    K=K, 
-    distortion_coefficients=distortion_coefficients
-  )
-  I2 = calibrate_camera.undistort_image(
-    distorted_image=I2, 
-    K=K, 
-    distortion_coefficients=distortion_coefficients
-  )
+  K_inv = np.linalg.inv(K) 
 
   # Matching features
   # best_index_pairs, best_matches, best_keypoints_1, best_keypoints_2 = match_raw(I1, I2)
@@ -122,7 +133,7 @@ def two_view_reconstruction(
   xy1 = common.project(arr=uv1, K_inv=K_inv)
   xy2 = common.project(arr=uv2, K_inv=K_inv)
 
-  E, inlier_set = __ransac(uv1=uv1, uv2=uv2, K=K)
+  E, inlier_set = __ransac(xy1=xy1, xy2=xy2, uv1=uv1, uv2=uv2, K=K)
   F = common.F_from_E(E, K)
 
   # This appears to be too small...
@@ -130,7 +141,7 @@ def two_view_reconstruction(
   # However, this is perhaps far too small for our use case? By just sending in the best values 
   # it may be difficult to get a proper estimate on the actual inliers? However, by sending in
   # more values, it becomes too heavy for ransac to calculate all... 
-  print("Found {} inliers".format(np.sum(inlier_set == 1))) 
+  # print("Found {} inliers".format(np.sum(inlier_set == 1))) 
 
   # Extracting the inliers and caluclating the pose
   # Why are these so strange? The indexing caused by the inlier set causes this!
@@ -152,16 +163,32 @@ def two_view_reconstruction(
   # Get the features in world frame (camera 1)
   X = common.triangulate_many(xy1=xy1, xy2=xy2, P1=P1, P2=P2)
 
+  # "You will need to save the 3D point coordinates and a feature descriptor associated
+  # with each 3D point."
+  model_keypoints = keypoints_1[inlier_set,:]
+  X3D = X[:3,:]
+
+  matched_features = np.block([model_keypoints, X3D.T])
+
   # Save the detected features in world frame
   np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/X.txt'), X)
   np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/R2.txt'), R2)
   np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/t2.txt'), t2)
+  np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/K.txt'), K)
+  np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/matched_features.txt'), matched_features)
 
   plotting.draw_correspondences(I1=I1, I2=I2, uv1=uv1, uv2=uv2, F=F, sample_size=8)
   plt.show()
 
 
 if __name__ == '__main__':
-  two_view_reconstruction()
+  I1_path_str = '../data/hw5_ext/undistorted/IMG_8210.jpg'
+  I2_path_str = '../data/hw5_ext/undistorted/IMG_8211.jpg'
+  calibration_folder_path_str = '../data/hw5_ext/undistorted/'
+  two_view_reconstruction(
+    I1_path_str=I1_path_str, 
+    I2_path_str=I2_path_str, 
+    calibration_folder_path_str=calibration_folder_path_str
+  )
 
 

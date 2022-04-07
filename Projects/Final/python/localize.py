@@ -7,6 +7,9 @@ import numpy as np
 
 import plotting
 
+from model_reconstruction import ExtractFeaturesSIFT
+from matlab_inspired_interface import match_features, show_matched_features
+
 def __nonlinear_least_squares(
       R0 : np.ndarray, 
       T0 : np.ndarray
@@ -22,15 +25,17 @@ def __nonlinear_least_squares(
 
 
 def localize(
-      model_path : str  = '../example_localization',
-      query_path : str  = '../example_localization/query/IMG_8210',
-      default    : bool = False
+      model_path    : str   = '../example_localization',
+      query_path    : str   = '../example_localization/query/',
+      image_str  : str   = 'IMG_8210.jpg', 
+      default       : bool  = True
     ) -> None:
   """
   From the discussion on overleaf:
 
   What is meant by localization of a random image? Haven't we done this in task 2.1?
   
+  What is assumed to be meant by localization:
   Have an image with known features. Receive a new image with unknown features. 
   Search through the new image and detect if there are any similar features. 
   If there are enough of them, try to calculate the pose difference between the first and 
@@ -51,8 +56,10 @@ def localize(
   It is assumed that the image/query is undistorted before use
   """
 
-  model = os.path.join(sys.path[0], model_path)
-  query = os.path.join(sys.path[0], query_path)
+  assert isinstance(image_str, str), "Image id must be a string"
+
+  model = os.path.join(*[sys.path[0], model_path])
+  query = os.path.join(*[sys.path[0], query_path])
 
   # Load features from the world frame
   # 3D points [4 x num_points].
@@ -60,26 +67,48 @@ def localize(
 
   if not default:
     K = np.loadtxt(f'{model}/K.txt')
+    
+    # matched_features = [features | X3D]
+    matched_features = np.loadtxt(f'{model}/matched_features.txt')
 
-    # Extract the same features in the image plane
-    uv = np.zeros((1,3)) # TODO: placeholder
+    model_keypoints = matched_features[:, :2]
+    X3D = matched_features[:, 2:]
+    # X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
+
+    query_image = cv2.imread((query + image_str), cv2.IMREAD_GRAYSCALE)
+    sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
+
+    # Extract the same features in the image plane with the same method 
+    # as previously 
+    query_keypoints, query_descriptors = sift.extract_features(image=query_image)
+
+    index_pairs, match_metric = match_features(
+      features1=model_keypoints, 
+      features2=query_keypoints, 
+      max_ratio=1.0, 
+      unique=True
+    )
+    model_keypoints = model_keypoints[index_pairs[:,0]]
+    query_keypoints = query_keypoints[index_pairs[:,1]]
+
+    model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
+    query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
 
     # Use solvePnPRansac to get initial guess on R and T
     # It is assumed that the image is undistorted before use
-    _, rvecs, tvecs, reprojection_error =\
-    cv2.solvePnPRansac(
-      objectPoints=X,
-      imagePoints=uv,
+    _, rvecs, tvecs, inliers = cv2.solvePnPRansac(
+      objectPoints=X3D,
+      imagePoints=query_uv1,
       cameraMatrix=K
     )
     R = rvecs.reshape((3, 3))
     T = tvecs.reshape((3, 1))
 
-    np.savetxt(f'{query}/errors/reprojection_error_before_optimization.txt', reprojection_error)
+    np.savetxt(f'{query}/sfm/inliers.txt', inliers)
 
     # Use a nonlinear least squares to refine R and T
     R, T, reprojection_error = __nonlinear_least_squares(R0=R, T0=T)
-    np.savetxt(f'{query}/errors/reprojection_error_after_optimization.txt', reprojection_error)
+    np.savetxt(f'{query}/sfm/reprojection_error.txt', reprojection_error)
 
     # Develop model-to-query transformation by [[R, T], [0, 0, 0, 1]]
     T_m2q = np.block([[R, T], [np.zeros((1, 3)), 1]]) # TODO: Check if this must be inverted
@@ -115,4 +144,12 @@ def localize(
   plt.show()
 
 if __name__ == '__main__':
-  localize()
+  model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
+  query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
+  image_str = "IMG_8220.jpg"
+  localize(
+    model_path=model_path,
+    query_path=query_path,
+    image_str=image_str,
+    default=False
+  )
