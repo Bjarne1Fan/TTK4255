@@ -61,10 +61,6 @@ def localize(
   model = os.path.join(*[sys.path[0], model_path])
   query = os.path.join(*[sys.path[0], query_path])
 
-  # Load features from the world frame
-  # 3D points [4 x num_points].
-  X = np.loadtxt(f'{model}/X.txt')
-
   if not default:
     K = np.loadtxt(f'{model}/K.txt')
     
@@ -73,7 +69,7 @@ def localize(
 
     model_keypoints = matched_features[:, :2]
     X3D = matched_features[:, 2:]
-    # X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
+    X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
 
     query_image = cv2.imread((query + image_str), cv2.IMREAD_GRAYSCALE)
     sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
@@ -82,6 +78,8 @@ def localize(
     # as previously 
     query_keypoints, query_descriptors = sift.extract_features(image=query_image)
 
+    model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
+    query_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
     index_pairs, match_metric = match_features(
       features1=model_keypoints, 
       features2=query_keypoints, 
@@ -91,18 +89,41 @@ def localize(
     model_keypoints = model_keypoints[index_pairs[:,0]]
     query_keypoints = query_keypoints[index_pairs[:,1]]
 
+    X3D = X3D[index_pairs[:,0]]
+
     model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
     query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
 
     # Use solvePnPRansac to get initial guess on R and T
     # It is assumed that the image is undistorted before use
+    # NOTE: Important that the type is float or uint8_t
+    # X3D1 = X3D1.astype(np.float64, casting='same_kind')
+    # query_uv1 = query_uv1.astype(np.float32, casting='same_kind')
+    # K = K.astype(np.float32, casting='same_kind')
+    model_uv1 = model_uv1.astype(np.float64)
     _, rvecs, tvecs, inliers = cv2.solvePnPRansac(
-      objectPoints=X3D,
-      imagePoints=query_uv1,
-      cameraMatrix=K
+      objectPoints=X3D,#model_uv1.T, # Thinks that it will be wrong to send in these values, as it does 
+                                # not contain any information regarding the z-vector. Only the uv-plane
+      imagePoints=query_keypoints,#query_uv1[:2].T, # Slicing can be dangerous!
+      cameraMatrix=K,
+      distCoeffs=np.zeros((1,4), dtype=np.float32) # Assuming that the images are undistorted before use
     )
-    R = rvecs.reshape((3, 3))
+    # print(rvecs)  # Why does this only returning three different values in the vector? This makes no fucking
+                  # sense at all! One could skew it, but that would definetly not be correct
+                  # Is it really euler angles????? WHy the fuck would one represent it using euler angles ¨
+                  # and not quaternions or the rotation matrix??
+    # I assume that the rvecs contain the rotation in euler angles
+    # After reading a bit through some forums, a major pain in the but might be the use of !! LEFT !! hand-
+    # convection used by opencv. 
+
+    # Or could it be another convention, like rodriques?
+    # https://answers.opencv.org/question/134017/need-explaination-about-rvecs-returned-from-solvepnp/
+    # https://www.reddit.com/r/opencv/comments/kczhoc/question_solvepnp_rvecs_what_do_they_mean/
+    # https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#rodrigues
+    R, _ = cv2.Rodrigues(rvecs)
     T = tvecs.reshape((3, 1))
+
+    print(R)
 
     np.savetxt(f'{query}/sfm/inliers.txt', inliers)
 
@@ -113,7 +134,14 @@ def localize(
     # Develop model-to-query transformation by [[R, T], [0, 0, 0, 1]]
     T_m2q = np.block([[R, T], [np.zeros((1, 3)), 1]]) # TODO: Check if this must be inverted
 
+    X = X3D.T
+    colors = np.zeros((X3D.shape[0], 3))
+
   else:
+    # Load features from the world frame
+    # 3D points [4 x num_points].
+    X = np.loadtxt(f'{model}/X.txt')
+
     # Model-to-query transformation.
     # If you estimated the query-to-model transformation,
     # then you need to take the inverse.
