@@ -130,16 +130,16 @@ def find_optimal_pose(
 
   # Iterate over all of the possible matrices and find the matrix with most
   # measurements in front of the camera
-  for (idx, P) in enumerate(pose_matrices):
+  for (idx, pose) in enumerate(pose_matrices):
     X = triangulate_many(
       xy1=xy1, 
       xy2=xy2, 
       P1=pose_world, 
-      P2=P
+      P2=pose
     )
     
     # Find maximum points with a positive z-value (in front of the camera)
-    num_pos_z = np.sum(((P @ X)[2] >= 0))
+    num_pos_z = np.sum(((pose @ X)[2] >= 0))
     if num_pos_z >= pos_z:
       pos_z = num_pos_z
       best_pose_idx = idx
