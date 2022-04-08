@@ -1,34 +1,116 @@
 import os 
 import sys
+import warnings
 import cv2
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-import plotting
+from scipy.optimize import least_squares
 
+import plotting
+import common
 from model_reconstruction import ExtractFeaturesSIFT
 from matlab_inspired_interface import match_features, show_matched_features
 
-def __nonlinear_least_squares(
-      R0 : np.ndarray, 
-      T0 : np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
-  """
-  Nonlinear least squares that must be solved to get R and T better 
-  refined.
-  """
-  R = np.eye(3)
-  T = np.zeros((3, 1))
-  reprojection_error = np.zeros((3, 1))
-  return R, T, reprojection_error
+class OptimizeQueryPose:
+  def __init__(
+        self,
+        K         : np.ndarray,
+        query_uv  : np.ndarray,
+        X3D       : np.ndarray
+      ) -> None:
+    self.__K_inv = np.linalg.inv(K)
+    self.__query_uv = query_uv
+    self.__X3D = X3D 
+
+  def __residual_function(
+        self,
+        x         : np.ndarray
+      ) -> np.ndarray:
+    """
+    Residual function for minimzing the reprojection errors, by
+    optimizing the estimated pose.
+
+    You can then estimate the camera pose via minimizing 
+    reprojection errors. 
+
+    Projecting the 3D-coordinates down into the camera plane, and calculating the 
+    distance to the actual points. Returning this error
+    
+    The array that must be projected down into the plane however, must first be 
+    rotated such that the values are correct
+
+    OBS! Must make sure that the estimated values also fits as a rotation matrix.
+    Must therefore run the closest rotation matrix to guarantee that the results
+    become proper
+
+    It is assumed that the input will be in the order
+    x = [r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3]
+    """
+    R = common.closest_rotation_matrix(x[:9].reshape((3, 3)))
+    t = x[9:].reshape((3, 1))
+
+    # NOTE: I am certain that this contains at least one error
+    # I think that the inverse must be used in this case, as we would like the
+    # points given in the plane belonging to the camera in question 
+    X = R.T @ self.__X3D.T - R.T @ t # Will the rotation and the translation be the inverse of what is used here?
+    uv_hat = common.project(arr=X, K_inv=self.__K_inv).T
+
+    assert uv_hat.shape[0] == self.__query_uv.shape[0], "Rows must be identical"
+    assert uv_hat.shape[1] == self.__query_uv.shape[1], "Cols must be identical"
+
+    residuals = uv_hat - self.__query_uv
+    return residuals.flatten() 
+
+  def __jacobian(self) -> np.ndarray:
+    """
+    Returns the jacobian corresponding to the optimization
+    problem. 
+
+    Has no impact if the LM-method is used
+    """
+    return None # Until further is known about the sparsity of the model
+
+  def nonlinear_least_squares(
+        self,
+        R0        : np.ndarray, 
+        T0        : np.ndarray
+      ) -> tuple[np.ndarray, np.ndarray, float]:
+    """
+    Nonlinear least squares that must be solved to get R and T better 
+    refined. Using LM-optimization, as used in the midterm project
+    """
+    x0 = np.block([R0.flatten(), T0.flatten()])
+
+    optimization_results = least_squares(
+      fun=self.__residual_function,
+      x0=x0,
+      jac_sparsity=self.__jacobian()
+    )
+    success = optimization_results.success
+
+    if success:
+      # Optimization converged
+      x = optimization_results.x
+
+      R = x[:9].reshape((3, 3))
+      T = x[9:].reshape((3, 1))
+      reprojection_error = optimization_results.cost
+    else:
+      warnings.warn("Optimization did not converge! Reason: {}. Returning initial values!".format(optimization_results.message))
+      R = R0
+      T = T0
+      reprojection_error = np.infty
+    R = common.closest_rotation_matrix(R)
+    return R, T, reprojection_error
 
 
 def localize(
-      model_path    : str   = '../example_localization',
-      query_path    : str   = '../example_localization/query/',
-      image_str  : str   = 'IMG_8210.jpg', 
-      default       : bool  = True
+      model_path  : str   = '../example_localization',
+      query_path  : str   = '../example_localization/query/',
+      image_str   : str   = 'IMG_8210.jpg', 
+      default     : bool  = True
     ) -> None:
   """
   From the discussion on overleaf:
@@ -91,8 +173,8 @@ def localize(
 
     X3D = X3D[index_pairs[:,0]]
 
-    model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
-    query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
+    # model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
+    # query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
 
     # Use solvePnPRansac to get initial guess on R and T
     # It is assumed that the image is undistorted before use
@@ -100,7 +182,7 @@ def localize(
     # X3D1 = X3D1.astype(np.float64, casting='same_kind')
     # query_uv1 = query_uv1.astype(np.float32, casting='same_kind')
     # K = K.astype(np.float32, casting='same_kind')
-    model_uv1 = model_uv1.astype(np.float64)
+    # model_uv1 = model_uv1.astype(np.float64)
     _, rvecs, tvecs, inliers = cv2.solvePnPRansac(
       objectPoints=X3D,#model_uv1.T, # Thinks that it will be wrong to send in these values, as it does 
                                 # not contain any information regarding the z-vector. Only the uv-plane
@@ -120,22 +202,30 @@ def localize(
     # https://answers.opencv.org/question/134017/need-explaination-about-rvecs-returned-from-solvepnp/
     # https://www.reddit.com/r/opencv/comments/kczhoc/question_solvepnp_rvecs_what_do_they_mean/
     # https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#rodrigues
-    R, _ = cv2.Rodrigues(rvecs)
+    R, _ = cv2.Rodrigues(rvecs) 
     T = tvecs.reshape((3, 1))
 
-    print(R)
-
-    np.savetxt(f'{query}/sfm/inliers.txt', inliers)
-
     # Use a nonlinear least squares to refine R and T
-    R, T, reprojection_error = __nonlinear_least_squares(R0=R, T0=T)
-    np.savetxt(f'{query}/sfm/reprojection_error.txt', reprojection_error)
+    optimize_query_pose = OptimizeQueryPose(K=K, query_uv=query_keypoints, X3D=X3D)
+    R, T, reprojection_error = optimize_query_pose.nonlinear_least_squares(R0=R, T0=T)
+    print(reprojection_error)
 
     # Develop model-to-query transformation by [[R, T], [0, 0, 0, 1]]
-    T_m2q = np.block([[R, T], [np.zeros((1, 3)), 1]]) # TODO: Check if this must be inverted
+    T_m2q = np.block(
+      [
+        [R,                T], 
+        [np.zeros((1, 3)), 1]
+      ]
+    ) # TODO: Check if this must be inverted
 
+    # Prepare for plotting
     X = X3D.T
     colors = np.zeros((X3D.shape[0], 3))
+
+    # Store the data
+    np.savetxt(f'{query}/sfm/T_m2q.txt', T_m2q)
+    # np.savetxt(f'{query}/sfm/reprojection_error.txt', reprojection_error)
+    np.savetxt(f'{query}/sfm/inliers.txt', inliers)
 
   else:
     # Load features from the world frame
