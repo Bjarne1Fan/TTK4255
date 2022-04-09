@@ -1,5 +1,6 @@
 import os
 import sys
+from tkinter import image_names
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from os.path import join
 import matplotlib.pyplot as plt
 import numpy as np
 import plotting 
+import localize
 
 def show_calibration_results():
   folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
@@ -67,7 +69,7 @@ def show_calibration_results():
   plt.show()
   
 
-def show_localization_results():
+def show_default_localization_results():
   model = os.path.join(sys.path[0], '../example_localization')
   query = os.path.join(sys.path[0], '../example_localization/query/IMG_8210')
 
@@ -100,7 +102,24 @@ def show_localization_results():
   )
   plt.tight_layout()
   plt.show()
+  
+
+def show_localization_results():
+  # All of these generate the same damn image and image styr
+  image_str_list = ["IMG_8207.jpg", "IMG_8210.jpg", "IMG_8220.jpg", "IMG_8216.jpg"] 
+
+  model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
+  query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
+
+  for image_str in image_str_list:
+    localize.localize(
+      model_path=model_path,
+      query_path=query_path,
+      image_str=image_str
+    )
+  plt.show()
 
 if __name__ == '__main__':
-  show_calibration_results()
+  # show_calibration_results()
+  # show_default_localization_results()
   show_localization_results()

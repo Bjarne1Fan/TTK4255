@@ -9,6 +9,69 @@ def project(
   return arr_tilde[:2,:] / arr_tilde[2,:]
 
 
+def rotate_x(radians : float) -> np.ndarray:
+  """
+  From midterm
+  """
+  c = np.cos(radians)
+  s = np.sin(radians)
+  return np.array(
+    [
+      [1, 0, 0, 0],
+      [0, c,-s, 0],
+      [0, s, c, 0],
+      [0, 0, 0, 1]
+    ]
+  )
+
+def rotate_y(radians : float) -> np.ndarray:
+  """
+  From midterm
+  """
+  c = np.cos(radians)
+  s = np.sin(radians)
+  return np.array(
+    [
+      [ c, 0, s, 0],
+      [ 0, 1, 0, 0],
+      [-s, 0, c, 0],
+      [ 0, 0, 0, 1]
+    ]
+  )
+
+def rotate_z(radians : float) -> np.ndarray:
+  """
+  From midterm
+  """
+  c = np.cos(radians)
+  s = np.sin(radians)
+  return np.array(
+    [
+      [c,-s, 0, 0],
+      [s, c, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1]
+    ]
+  )
+
+def translate(
+      x : float, 
+      y : float, 
+      z : float
+    ) -> np.ndarray:
+  """
+  From midterm
+  """
+  return np.array(
+    [
+      [1, 0, 0, x],
+      [0, 1, 0, y],
+      [0, 0, 1, z],
+      [0, 0, 0, 1]
+    ]
+  )
+
+
 def closest_rotation_matrix(Q: np.ndarray) -> np.ndarray:
   U, _, VT = np.linalg.svd(Q)
   R = U @ VT

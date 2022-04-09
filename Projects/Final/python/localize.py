@@ -20,6 +20,7 @@ class OptimizeQueryPose:
         query_uv  : np.ndarray,
         X3D       : np.ndarray
       ) -> None:
+    self.__K = K
     self.__K_inv = np.linalg.inv(K)
     self.__query_uv = query_uv
     self.__X3D = X3D 
@@ -46,22 +47,46 @@ class OptimizeQueryPose:
     become proper
 
     It is assumed that the input will be in the order
-    x = [r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3]
+    x = [r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3] # NOTE This is outdated
+    x = [roll, theta, yaw, t1, t2, t3] # NOTE Is better
+
+    Or will it really? Couldn't it just be angles returned in yaw, theta, roll as
+    in the midterm project? 
+    
+    Also there is a bug where the initial values are not used properly
+
+    Makes more sence that the optimization algorithm will return the three different
+    angles instead of the full rotation matrix. It will be far less work to optimize
+    this as well
+
+    NOTE: SHould this include R0?
     """
-    R = common.closest_rotation_matrix(x[:9].reshape((3, 3)))
-    t = x[9:].reshape((3, 1))
+    roll, pitch, yaw = x[:3]
+    # R = common.closest_rotation_matrix(x[:9].reshape((3, 3)))
+    R = common.rotate_x(roll) @ common.rotate_y(pitch) @ common.rotate_z(yaw) @ self.__R0    
+    t = x[3:].reshape((3, 1))
 
     # NOTE: I am certain that this contains at least one error
     # I think that the inverse must be used in this case, as we would like the
     # points given in the plane belonging to the camera in question 
-    X = R.T @ self.__X3D.T - R.T @ t # Will the rotation and the translation be the inverse of what is used here?
+    X = R[:3,:3] @ self.__X3D.T + t # Will the rotation and the translation be the inverse of what is used here?
     uv_hat = common.project(arr=X, K_inv=self.__K_inv).T
 
     assert uv_hat.shape[0] == self.__query_uv.shape[0], "Rows must be identical"
     assert uv_hat.shape[1] == self.__query_uv.shape[1], "Cols must be identical"
 
-    residuals = uv_hat - self.__query_uv
-    return residuals.flatten() 
+    N = X.shape[1]
+    residuals = np.zeros((1, N))
+    
+    for i in range(N):
+      temp0 = i*2
+      temp1 = (i+1)*2 - 1
+      residuals[0 : 1] = (self.__query_uv[i,:] - uv_hat[i,:]).reshape((1, 2)) # Fucked here
+    
+    return residuals
+
+    # residuals = uv_hat - self.__query_uv
+    # return residuals.flatten() # Does it work to flatten this shit?
 
   def __jacobian(self) -> np.ndarray:
     """
@@ -74,14 +99,34 @@ class OptimizeQueryPose:
 
   def nonlinear_least_squares(
         self,
-        R0        : np.ndarray, 
-        T0        : np.ndarray
+        rvecs : np.ndarray, 
+        tvecs : np.ndarray
       ) -> tuple[np.ndarray, np.ndarray, float]:
     """
     Nonlinear least squares that must be solved to get R and T better 
     refined. Using LM-optimization, as used in the midterm project
     """
-    x0 = np.block([R0.flatten(), T0.flatten()])
+    R, _ = cv2.Rodrigues(rvecs) 
+    t = tvecs.reshape((3, 1))  # Should this be positive or negative?
+    self.__R0 = np.block([[R, np.zeros((3, 1))], [np.zeros((1, 4))]])
+    self.__t0 = t
+
+    P = np.block([R, t])
+    # https://github.com/mpatacchiola/deepgaze/issues/3
+    _, _, _, _, _, _, euler_angles = cv2.decomposeProjectionMatrix(
+      projMatrix=P, 
+      cameraMatrix=self.__K, 
+      rotMatrix=R, 
+      transVect=np.block([[t],[1]])
+    )
+
+    # NOTE: The euler angles are returned as pitch - yaw - roll
+    # It is desired to have it in the format roll - pitch - yaw
+    # https://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/?answer=52913#post-id-52913
+    euler_angles = np.array([euler_angles[2], euler_angles[0], euler_angles[1]])
+
+    # x0 = np.block([R0.flatten(), t0.flatten()])
+    x0 = np.hstack([euler_angles.T, t.T]).flatten()
 
     optimization_results = least_squares(
       fun=self.__residual_function,
@@ -94,23 +139,21 @@ class OptimizeQueryPose:
       # Optimization converged
       x = optimization_results.x
 
-      R = x[:9].reshape((3, 3))
-      T = x[9:].reshape((3, 1))
+      roll, pitch, yaw = x[:3]
+
+      t = x[3:].reshape((3, 1))
       reprojection_error = optimization_results.cost
     else:
       warnings.warn("Optimization did not converge! Reason: {}. Returning initial values!".format(optimization_results.message))
-      R = R0
-      T = T0
       reprojection_error = np.infty
     R = common.closest_rotation_matrix(R)
-    return R, T, reprojection_error
+    return R, t, reprojection_error
 
 
 def localize(
       model_path  : str   = '../example_localization',
       query_path  : str   = '../example_localization/query/',
-      image_str   : str   = 'IMG_8210.jpg', 
-      default     : bool  = True
+      image_str   : str   = 'IMG_8210.jpg'
     ) -> None:
   """
   From the discussion on overleaf:
@@ -140,6 +183,12 @@ def localize(
 
   assert isinstance(image_str, str), "Image id must be a string"
 
+  default = (
+    model_path == '../example_localization' and \
+    query_path == '../example_localization/query/' and \
+    image_str == 'IMG_8210.jpg'
+  )
+
   model = os.path.join(*[sys.path[0], model_path])
   query = os.path.join(*[sys.path[0], query_path])
 
@@ -161,7 +210,7 @@ def localize(
     query_keypoints, query_descriptors = sift.extract_features(image=query_image)
 
     model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
-    query_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
+    query_keypoints = query_keypoints.astype(np.float32, casting='same_kind')
     index_pairs, match_metric = match_features(
       features1=model_keypoints, 
       features2=query_keypoints, 
@@ -171,7 +220,7 @@ def localize(
     model_keypoints = model_keypoints[index_pairs[:,0]]
     query_keypoints = query_keypoints[index_pairs[:,1]]
 
-    X3D = X3D[index_pairs[:,0]]
+    X3D = X3D[index_pairs[:,0]] # 0 or 1? NOTE. Or is it that we would like to find 2D-3D point correspondances?
 
     # model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
     # query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
@@ -202,18 +251,25 @@ def localize(
     # https://answers.opencv.org/question/134017/need-explaination-about-rvecs-returned-from-solvepnp/
     # https://www.reddit.com/r/opencv/comments/kczhoc/question_solvepnp_rvecs_what_do_they_mean/
     # https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#rodrigues
-    R, _ = cv2.Rodrigues(rvecs) 
-    T = tvecs.reshape((3, 1))
+    # It is returned as a rotation vector. See documentation for the rodrigues in cv2
 
+    # NOTE from documentation of rodrigues: 
+    # A rotation vector is a convenient and most compact representation of a rotation matrix (since any 
+    # rotation matrix has just 3 degrees of freedom). The representation is used in the global 3D geometry 
+    # optimization procedures like @ref calibrateCamera, @ref stereoCalibrate, or @ref solvePnP .
     # Use a nonlinear least squares to refine R and T
-    optimize_query_pose = OptimizeQueryPose(K=K, query_uv=query_keypoints, X3D=X3D)
-    R, T, reprojection_error = optimize_query_pose.nonlinear_least_squares(R0=R, T0=T)
+    optimize_query_pose = OptimizeQueryPose(
+      K=K, 
+      query_uv=query_keypoints, 
+      X3D=X3D
+    )
+    R, t, reprojection_error = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs) # Can't one just input the 3x1 rodrigues vector?
     print(reprojection_error)
 
-    # Develop model-to-query transformation by [[R, T], [0, 0, 0, 1]]
+    # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     T_m2q = np.block(
       [
-        [R,                T], 
+        [R,                t], 
         [np.zeros((1, 3)), 1]
       ]
     ) # TODO: Check if this must be inverted
@@ -253,13 +309,13 @@ def localize(
   frame_size = 1
   marker_size = 5
 
-  plt.figure('3D point cloud', figsize=(6,6))
+  plt.figure('3D point cloud with image {}'.format(image_str), figsize=(6,6))
   plotting.draw_point_cloud(
     X, T_m2q, xlim, ylim, zlim, 
     colors=colors, marker_size=marker_size, frame_size=frame_size
   )
   plt.tight_layout()
-  plt.show()
+  
 
 if __name__ == '__main__':
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
@@ -268,6 +324,6 @@ if __name__ == '__main__':
   localize(
     model_path=model_path,
     query_path=query_path,
-    image_str=image_str,
-    default=False
+    image_str=image_str
   )
+  plt.show()
