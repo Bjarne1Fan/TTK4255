@@ -93,9 +93,17 @@ def draw_point_cloud(
     ) -> None:
   ax = plt.axes(projection='3d')
   ax.set_box_aspect((1, 1, 1))
-  if colors.max() > 1.1:
+  if colors.max() > 1.0:
     colors = colors.copy() / 255
-  ax.scatter(X[0,:], X[2,:], X[1,:], c=colors, marker='.', s=marker_size, depthshade=False)
+  ax.scatter(
+    X[0,:], 
+    X[2,:], 
+    X[1,:], 
+    c=colors, 
+    marker='.', 
+    s=marker_size, 
+    depthshade=False
+  )
   draw_frame(ax, np.linalg.inv(T_m2q), scale=frame_size)
   ax.grid(False)
   ax.set_xlim(xlim)
