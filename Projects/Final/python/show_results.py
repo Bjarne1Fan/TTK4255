@@ -117,6 +117,7 @@ def show_localization_results():
       query_path=query_path,
       image_str=image_str
     )
+    #break
   plt.show()
 
 if __name__ == '__main__':
