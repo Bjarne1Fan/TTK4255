@@ -36,7 +36,9 @@ class OptimizeQueryPose:
       __us = sigma_u_std * np.ones((1, self.__N), dtype=float)
       __vs = sigma_v_std * np.ones((1, self.__N), dtype=float)
 
-      self.__sigma_r = np.diag(np.hstack([__us, __vs])[0])
+      __sigma_r = np.diag(np.hstack([__us, __vs])[0])
+      __L = np.linalg.cholesky(__sigma_r)
+      self.__L_inv = np.linalg.inv(__L)
 
 
   def __residual_function(
@@ -105,8 +107,7 @@ class OptimizeQueryPose:
     residuals = np.hstack([residuals[:,0].T, residuals[:,1].T]) # Horizontal and then the vertical errors
 
     if self.__use_weights:
-      L = np.linalg.cholesky(self.__sigma_r)
-      residuals = np.linalg.inv(L) @ residuals
+      residuals = self.__L_inv @ residuals
 
     return residuals
 
@@ -123,13 +124,13 @@ class OptimizeQueryPose:
         self,
         rvecs : np.ndarray, 
         tvecs : np.ndarray
-      ) -> tuple[np.ndarray, np.ndarray, float]:
+      ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """
     Nonlinear least squares that must be solved to get R and T better 
     refined. Using LM-optimization, as used in the midterm project
     """
     R, _ = cv2.Rodrigues(rvecs) 
-    t = -tvecs.reshape((3, 1))  # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
+    t = tvecs.reshape((3, 1))  # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
     # self.__R0_4x4 = np.block([[R, np.zeros((3, 1))], [np.zeros((1, 3)), 1]])
     # self.__t0 = -t # Output from decomposeProjectionMatrix imply that this should be negated. Why?
 
@@ -157,7 +158,8 @@ class OptimizeQueryPose:
     optimization_results = least_squares(
       fun=self.__residual_function,
       x0=x0,
-      jac_sparsity=self.__jacobian()
+      jac_sparsity=self.__jacobian(),
+      method='lm'
     )
     success = optimization_results.success
 
@@ -197,8 +199,8 @@ class OptimizeQueryPose:
     assert len(jacobian.shape) == 2, "Jacobian must have two dimensions"
     assert jacobian.shape[0] == 2 * self.__N, "Jacobian must match the data"
     
-    cov_r_inv = np.eye(2 * self.__N) # inv(eye) = eye. Assumed that 
-    JTJ = jacobian.T @ jacobian
+    cov_r_inv = np.eye(2 * self.__N) # inv(eye) = eye 
+    # JTJ = jacobian.T @ jacobian
     
     try:
       cov_p = np.linalg.inv(jacobian.T @ cov_r_inv @ jacobian)  
@@ -248,8 +250,8 @@ def localize(
   sigma_v_std = 0.1
 
   # For task 3.6
-  use_monte_carlo = True
-  monte_carlo_iterations = 2
+  use_monte_carlo = False
+  monte_carlo_iterations = 500
 
   sigma_f_std = 50
   sigma_cx_std = 0.1
@@ -273,33 +275,43 @@ def localize(
     matched_features = np.loadtxt(f'{model}/matched_features.txt')
 
     model_keypoints = matched_features[:, :2]
-    X3D = matched_features[:, 2:]
-    X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
+    X3D = matched_features[:, 2:5]
+    model_descriptors = matched_features[:, 5:] 
+    # X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
 
     query_image = cv2.imread((query + image_str), cv2.IMREAD_GRAYSCALE)
-    sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
+    sift = ExtractFeaturesSIFT(n_features=30000, contrast_threshold=0.01, edge_threshold=30)
 
     # Extract the same features in the image plane with the same method 
     # as previously 
     query_keypoints, query_descriptors = sift.extract_features(image=query_image)
 
-    model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
-    query_keypoints = query_keypoints.astype(np.float32, casting='same_kind')
+    # model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
+    # query_keypoints = query_keypoints.astype(np.float32, casting='same_kind')
+
+    model_descriptors = model_descriptors.astype(np.float32, casting='same_kind')
+    query_descriptors = query_descriptors.astype(np.float32, casting='same_kind')
+
     index_pairs, match_metric = match_features(
-      features1=model_keypoints, 
-      features2=query_keypoints, 
-      max_ratio=0.75, 
+      features1=model_descriptors, 
+      features2=query_descriptors, 
+      max_ratio=0.85, 
       unique=True
     )
     model_keypoints = model_keypoints[index_pairs[:,0]]
     query_keypoints = query_keypoints[index_pairs[:,1]]
 
+    model_descriptors = model_descriptors[index_pairs[:,0]]
+    query_descriptors = query_descriptors[index_pairs[:,1]]
+
     X3D = X3D[index_pairs[:,0]] 
 
     # Filter out all values that have a negative Z-value
-    positive_indeces = X3D[:, 2] >= 0
-    X3D = X3D[positive_indeces]
-    query_keypoints = query_keypoints[positive_indeces]
+    # positive_indeces = X3D[:, 2] >= 0
+    # X3D = X3D[positive_indeces]
+    # query_keypoints = query_keypoints[positive_indeces]
+    # query_descriptors = query_descriptors[positive_indeces]
+    # model_descriptors = model_descriptors[positive_indeces]
 
     # model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
     # query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
@@ -318,6 +330,44 @@ def localize(
       cameraMatrix=K,
       distCoeffs=np.zeros((1,4), dtype=np.float32) # Assuming that the images are undistorted before use
     )
+
+    # R, _ = cv2.Rodrigues(rvecs) # This returns eye... Why???
+    # # R = np.eye(3)
+    # t = -tvecs.reshape((3, -1))
+
+    # T_m2q = np.block(
+    #   [
+    #     [R,                t], 
+    #     [np.zeros((1, 3)), 1]
+    #   ]
+    # )
+    # print(T_m2q)
+
+    # X = X3D[inliers[:, 0]].T
+    # colors = np.zeros((X.shape[1], 3))
+
+    # xlim = [-10,+10]
+    # ylim = [-10,+10]
+    # zlim = [0,+20]
+
+    # frame_size = 1
+    # marker_size = 5
+
+    # plt.figure('3D point cloud with image {}'.format(image_str), figsize=(6,6))
+    # plotting.draw_point_cloud(
+    #   X=X, 
+    #   T_m2q=T_m2q, 
+    #   xlim=xlim, 
+    #   ylim=ylim, 
+    #   zlim=zlim, 
+    #   colors=colors, 
+    #   marker_size=marker_size, 
+    #   frame_size=frame_size
+    # )
+    # plt.tight_layout()
+    # plt.show()
+
+    # quit()
 
     X3D = X3D[inliers[:, 0]]
     query_keypoints = query_keypoints[inliers[:, 0]]
@@ -338,9 +388,9 @@ def localize(
       eta = np.random.multivariate_normal(mean=np.zeros((3, 1)).flatten(), cov=cov)
       eta = np.array(
         [
-          [eta[0], 0, eta[1]], 
-          [0, eta[0], eta[2]], 
-          [0, 0, 0]
+          [eta[0], 0,      eta[1]], 
+          [0,      eta[0], eta[2]], 
+          [0,      0,      0]
         ]
       )
       K = K + eta
@@ -369,6 +419,7 @@ def localize(
     # print("Reprojection error on image {} is {}".format(image_str, reprojection_error))
     # print(cov_p)
     # print(std_p)
+    print(t)
 
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     # NOTE: Will only use the last rotation matrix and the last translation vector if one uses the 
@@ -379,7 +430,8 @@ def localize(
         [np.zeros((1, 3)), 1]
       ]
     ) # TODO: Check if this must be inverted
-    # print(T_m2q)
+    print(T_m2q)
+    # T_m2q = np.linalg.inv(T_m2q)
 
     # Prepare for plotting
     X = X3D.T
@@ -394,11 +446,12 @@ def localize(
     # Load features from the world frame
     # 3D points [4 x num_points].
     X = np.loadtxt(f'{model}/X.txt')
+    print(X.shape)
 
     # Model-to-query transformation.
     # If you estimated the query-to-model transformation,
     # then you need to take the inverse.
-    T_m2q = np.loadtxt(f'{query}_T_m2q.txt')
+    T_m2q = np.loadtxt(f'{query}/IMG_8210_T_m2q.txt')
 
     # If you have colors for your point cloud model...
     colors = np.loadtxt(f'{model}/c.txt') # RGB colors [num_points x 3].
@@ -466,10 +519,11 @@ def localize(
 if __name__ == '__main__':
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
   query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
-  image_str = "IMG_8220.jpg"
+  image_str = "IMG_8218.jpg"
   localize(
     model_path=model_path,
     query_path=query_path,
     image_str=image_str
   )
+  # localize()
   plt.show()
