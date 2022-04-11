@@ -250,7 +250,7 @@ def localize(
   """
 
   # For task 3.5
-  use_weights = False
+  use_weights = True
   sigma_u_std = 50.0
   sigma_v_std = 0.1
 
