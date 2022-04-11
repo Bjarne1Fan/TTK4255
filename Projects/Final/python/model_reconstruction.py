@@ -39,7 +39,7 @@ class ExtractFeaturesSIFT:
 def __match_raw(
       I1 : np.ndarray, 
       I2 : np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
   sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
   keypoints_1, descriptors_1 = sift.extract_features(image=I1)
   keypoints_2, descriptors_2 = sift.extract_features(image=I2)
@@ -63,7 +63,8 @@ def __match_raw(
   plt.figure()
   show_matched_features(I1, I2, best_keypoints_1, best_keypoints_2, method='montage')
 
-  return keypoints_1[index_pairs[:,0]], keypoints_2[index_pairs[:,1]]
+  return  keypoints_1[index_pairs[:,0]], keypoints_2[index_pairs[:,1]], \
+          descriptors_1[index_pairs[:,0]], descriptors_2[index_pairs[:,1]]
 
 def __ransac(
       xy1 : np.ndarray,
@@ -116,7 +117,7 @@ def two_view_reconstruction(
 
   # Matching features
   # best_index_pairs, best_matches, best_keypoints_1, best_keypoints_2 = match_raw(I1, I2)
-  keypoints_1, keypoints_2 = __match_raw(I1, I2)
+  keypoints_1, keypoints_2, descriptors1, descriptors2 = __match_raw(I1, I2)
 
   # Running RANSAC to optimize the features extracted
   # Is it the best keypoints that are going to be sent to ransac?
@@ -167,8 +168,11 @@ def two_view_reconstruction(
   # with each 3D point."
   model_keypoints = keypoints_1[inlier_set,:]
   X3D = X[:3,:]
+  descriptors = descriptors1[inlier_set,:]
 
-  matched_features = np.block([model_keypoints, X3D.T])
+  # Assume that camera view 1 is the world frame which other queries 
+  # will be matched against later
+  matched_features = np.block([model_keypoints, X3D.T, descriptors])
 
   # Save the detected features in world frame
   np.savetxt(os.path.join(sys.path[0], '../data/results/task_2_1/X.txt'), X)
