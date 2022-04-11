@@ -16,15 +16,15 @@ from matlab_inspired_interface import match_features, show_matched_features
 class ExtractFeaturesSIFT:
   def __init__(
         self,
-        n_features          : int,
-        contrast_threshold  : float,
-        edge_threshold      : float 
+        n_features          : int   = 0,
+        contrast_threshold  : float = 0.05,
+        edge_threshold      : float = 25 
       ) -> None:
     # Documentation: https://docs.opencv.org/4.x/d7/d60/classcv_1_1SIFT.html
     self.sift = cv2.SIFT_create(
-      nfeatures=0, 
-      contrastThreshold=0.05,
-      edgeThreshold=25
+      nfeatures=n_features, 
+      contrastThreshold=contrast_threshold,
+      edgeThreshold=edge_threshold
     )
 
   def extract_features(self, image : np.ndarray) -> tuple[np.ndarray, np.ndarray]:
