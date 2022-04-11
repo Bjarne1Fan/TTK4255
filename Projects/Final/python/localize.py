@@ -23,11 +23,9 @@ class OptimizeQueryPose:
         sigma_u_std : float       = 50.0,
         sigma_v_std : float       = 0.1    
       ) -> None:
-    self.__K = K
     self.__K_inv = np.linalg.inv(K)
     self.__query_uv = query_uv
     self.__X3D = X3D 
-    # self.__X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
     
     self.__N = np.max([X3D.shape[0], X3D.shape[1]])
     
@@ -80,12 +78,13 @@ class OptimizeQueryPose:
     One sees that the rotation matrix does not fit. Can this be caused by the offset 
     between the axes used by cv2 and us?????? TODO: Check out this theory!
     """
-    # roll, pitch, yaw = x[:3]
+    roll, pitch, yaw = x[:3]
     # # R = common.closest_rotation_matrix(x[:9].reshape((3, 3)))
-    # R_4x4 = common.rotate_x(roll) @ common.rotate_y(pitch) @ common.rotate_z(yaw) @ self.__R0_4x4   
+    R_4x4 = common.rotate_x(roll) @ common.rotate_y(pitch) @ common.rotate_z(yaw) @ self.__R0_4x4
+    R = common.closest_rotation_matrix(R_4x4[:3,:3])
 
-    rvecs = x[:3].reshape((3, 1))
-    R, _ = cv2.Rodrigues(rvecs)
+    # rvecs = x[:3].reshape((3, 1))
+    # R, _ = cv2.Rodrigues(rvecs)
     
     t = x[3:].reshape((3, 1))
     # T = common.translate(t[0,0], t[1,0], t[2,0]) @ R_4x4
@@ -130,7 +129,10 @@ class OptimizeQueryPose:
     refined. Using LM-optimization, as used in the midterm project
     """
     R, _ = cv2.Rodrigues(rvecs) 
-    t = tvecs.reshape((3, 1))  # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
+    t = -tvecs.reshape((3, 1))  # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
+    R0 = np.eye(4)
+    R0[:3,:3] = R
+    self.__R0_4x4 = R0
     # self.__R0_4x4 = np.block([[R, np.zeros((3, 1))], [np.zeros((1, 3)), 1]])
     # self.__t0 = -t # Output from decomposeProjectionMatrix imply that this should be negated. Why?
 
@@ -151,8 +153,11 @@ class OptimizeQueryPose:
     # euler_angles = np.array([euler_angles[2], euler_angles[0], euler_angles[1]])
 
     # x0 = np.block([R0.flatten(), t0.flatten()])
-    # x0 = np.hstack([euler_angles.T, t.T]).flatten() # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
-    x0 = np.hstack([rvecs.reshape((1, -1)), -tvecs.reshape((1, -1))]).flatten()
+    # x0 = np.hstack([euler_angles.T, t.T]).flatten() 
+    # Output from decomposeProjectionMatrix imply that the t-vec should be negated
+    zeros = np.zeros((1, 3))
+    x0 = np.hstack([zeros.reshape((1, -1)), -tvecs.reshape((1, -1))]).flatten()
+    # x0 = np.hstack([rvecs.reshape((1, -1)), -tvecs.reshape((1, -1))]).flatten()
     # print(R)
 
     optimization_results = least_squares(
@@ -271,19 +276,17 @@ def localize(
   if not default:
     K = np.loadtxt(f'{model}/K.txt')
     
-    # matched_features = [features | X3D]
+    # matched_features = [features | X3D | descriptors]
     matched_features = np.loadtxt(f'{model}/matched_features.txt')
 
     model_keypoints = matched_features[:, :2]
     X3D = matched_features[:, 2:5]
     model_descriptors = matched_features[:, 5:] 
-    # X3D1 = np.block([X3D, np.ones((X3D.shape[0], 1))])
 
     query_image = cv2.imread((query + image_str), cv2.IMREAD_GRAYSCALE)
-    sift = ExtractFeaturesSIFT(n_features=30000, contrast_threshold=0.01, edge_threshold=30)
+    sift = ExtractFeaturesSIFT()#n_features=30000, contrast_threshold=0.01, edge_threshold=30)
 
-    # Extract the same features in the image plane with the same method 
-    # as previously 
+    # Extract the same features in the image plane with the same method as previously 
     query_keypoints, query_descriptors = sift.extract_features(image=query_image)
 
     # model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
@@ -313,61 +316,14 @@ def localize(
     # query_descriptors = query_descriptors[positive_indeces]
     # model_descriptors = model_descriptors[positive_indeces]
 
-    # model_uv1 = np.vstack([model_keypoints.T, np.ones(model_keypoints.shape[0])])
-    # query_uv1 = np.vstack([query_keypoints.T, np.ones(query_keypoints.shape[0])])
-
     # Use solvePnPRansac to get initial guess on R and T
-    # It is assumed that the image is undistorted before use
-    # NOTE: Important that the type is float or uint8_t
-    # X3D1 = X3D1.astype(np.float64, casting='same_kind')
-    # query_uv1 = query_uv1.astype(np.float32, casting='same_kind')
-    # K = K.astype(np.float32, casting='same_kind')
-    # model_uv1 = model_uv1.astype(np.float64)
     _, rvecs, tvecs, inliers = cv2.solvePnPRansac(
-      objectPoints=X3D,#model_uv1.T, # Thinks that it will be wrong to send in these values, as it does 
-                                # not contain any information regarding the z-vector. Only the uv-plane
-      imagePoints=query_keypoints,#query_uv1[:2].T, # Slicing can be dangerous!
+      objectPoints=X3D,
+      imagePoints=query_keypoints,
       cameraMatrix=K,
-      distCoeffs=np.zeros((1,4), dtype=np.float32) # Assuming that the images are undistorted before use
+      distCoeffs=np.zeros((1,4), dtype=np.float32), # Assuming that the images are undistorted before use
+      reprojectionError=3.0
     )
-
-    # R, _ = cv2.Rodrigues(rvecs) # This returns eye... Why???
-    # # R = np.eye(3)
-    # t = -tvecs.reshape((3, -1))
-
-    # T_m2q = np.block(
-    #   [
-    #     [R,                t], 
-    #     [np.zeros((1, 3)), 1]
-    #   ]
-    # )
-    # print(T_m2q)
-
-    # X = X3D[inliers[:, 0]].T
-    # colors = np.zeros((X.shape[1], 3))
-
-    # xlim = [-10,+10]
-    # ylim = [-10,+10]
-    # zlim = [0,+20]
-
-    # frame_size = 1
-    # marker_size = 5
-
-    # plt.figure('3D point cloud with image {}'.format(image_str), figsize=(6,6))
-    # plotting.draw_point_cloud(
-    #   X=X, 
-    #   T_m2q=T_m2q, 
-    #   xlim=xlim, 
-    #   ylim=ylim, 
-    #   zlim=zlim, 
-    #   colors=colors, 
-    #   marker_size=marker_size, 
-    #   frame_size=frame_size
-    # )
-    # plt.tight_layout()
-    # plt.show()
-
-    # quit()
 
     X3D = X3D[inliers[:, 0]]
     query_keypoints = query_keypoints[inliers[:, 0]]
@@ -385,6 +341,8 @@ def localize(
     for idx in range(monte_carlo_iterations):
       if use_monte_carlo:
         print("Simulation number {}".format(idx))
+      
+      # Create multivariate distribution of the intrinsic parameter
       eta = np.random.multivariate_normal(mean=np.zeros((3, 1)).flatten(), cov=cov)
       eta = np.array(
         [
@@ -395,16 +353,17 @@ def localize(
       )
       K = K + eta
 
+      # Optimize the pose using nonlinear least squares
       optimize_query_pose = OptimizeQueryPose(
         K=K, 
         query_uv=query_keypoints, 
         X3D=X3D,
-        use_weights=use_weights, # This has a huge impact on the performance of the estimates! Why??
+        use_weights=use_weights,
         sigma_u_std=sigma_u_std,
         sigma_v_std=sigma_v_std
       )
-
       R, t, reprojection_error, cov_p, std_p = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
+
       standard_deviations[idx, :] = std_p
       reprojection_errors[0, idx] = reprojection_error
     
@@ -415,11 +374,6 @@ def localize(
     print(standard_deviations.mean(axis=0))
     print("Average reprojection error over {} iterations".format(monte_carlo_iterations))
     print(reprojection_errors.mean(axis=1))
-
-    # print("Reprojection error on image {} is {}".format(image_str, reprojection_error))
-    # print(cov_p)
-    # print(std_p)
-    print(t)
 
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     # NOTE: Will only use the last rotation matrix and the last translation vector if one uses the 
