@@ -1,9 +1,3 @@
-#
-# The code in this script is largely copied from the official tutorial
-# https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
-#
-# Please read the tutorial for explanations of the OpenCV functions.
-
 import os 
 import sys
 
@@ -12,7 +6,7 @@ import numpy as np
 import cv2 as cv
 import glob
 
-from os.path import join, basename, realpath, dirname, exists, splitext
+from os.path import join, basename, realpath, dirname, exists
 
 
 def calibrate() -> tuple:
@@ -22,9 +16,6 @@ def calibrate() -> tuple:
   image_path_pattern = os.path.join(sys.path[0], '../data/hw5_ext/calibration/*.jpg')
   output_folder = dirname(image_path_pattern)
 
-  #
-  # TASK: Specify these
-  #
   board_size = np.array([4, 7]) # Number of internal corners of the checkerboard (see tutorial)
   square_size = 50 # Real world length of the sides of the squares (see HW6 Task 1.5)
 
