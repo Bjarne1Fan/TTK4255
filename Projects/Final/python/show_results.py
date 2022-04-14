@@ -18,7 +18,7 @@ def show_calibration_results():
   distortion_coefficients = np.loadtxt(join(folder, 'dc.txt'))
   std_int                 = np.loadtxt(join(folder, 'std_int.txt'))
   u_all                   = np.load(join(folder, 'u_all.npy'))
-  image_size              = np.loadtxt(join(folder, 'image_size.txt')).astype(np.int32) # height,width
+  image_size              = np.loadtxt(join(folder, 'image_size.txt')).astype(np.int32) # height, width
   mean_errors             = np.loadtxt(join(folder, 'mean_errors.txt'))
 
   # Extract components of intrinsics standard deviation vector. See:
@@ -77,17 +77,11 @@ def show_default_localization_results():
   X = np.loadtxt(f'{model}/X.txt')
 
   # Model-to-query transformation.
-  # If you estimated the query-to-model transformation,
-  # then you need to take the inverse.
   T_m2q = np.loadtxt(f'{query}_T_m2q.txt')
 
   # If you have colors for your point cloud model...
-  colors = np.loadtxt(f'{model}/c.txt') # RGB colors [num_points x 3].
-  # ...otherwise...
-  # colors = np.zeros((X.shape[1], 3))
+  colors = np.loadtxt(f'{model}/c.txt') 
 
-  # These control the visible volume in the 3D point cloud plot.
-  # You may need to adjust these if your model does not show up.
   xlim = [-10,+10]
   ylim = [-10,+10]
   zlim = [0,+20]
@@ -117,7 +111,7 @@ def show_localization_results():
       query_path=query_path,
       image_str=image_str
     )
-    #break
+    # break
   plt.show()
 
 if __name__ == '__main__':
