@@ -93,7 +93,7 @@ class OptimizeQueryPose:
         self,
         rvecs : np.ndarray, 
         tvecs : np.ndarray
-      ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
+      ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """
     Nonlinear least squares using the LM-method used to refine the estimates for 
     the rotation matrix and the translation matrix.
@@ -103,11 +103,12 @@ class OptimizeQueryPose:
       tvecs : Translation vector estimated from solvePnPRansac
 
     Output:
+      x                   : 6x1   Optimized state
       R                   : 3x3   pose rotation matrix
       t                   : 3x1   pose translation vector
       reprojection_error  : float 
       cov_x               : 6x6   covariance matrix
-      std_x               : 1x6   standard deviation vector
+      std_x               : 6x1   standard deviation vector
     """
     R, _ = cv2.Rodrigues(rvecs) 
     t = tvecs.reshape((3, 1))  
@@ -125,7 +126,7 @@ class OptimizeQueryPose:
     if success:
       # Optimization converged
       print("Optimization converged after {} invocations".format(optimization_results.nfev))
-      x = optimization_results.x
+      x = (optimization_results.x).reshape((6,1))
 
       rvecs = x[:3]
       R, _ = cv2.Rodrigues(rvecs)
@@ -135,9 +136,10 @@ class OptimizeQueryPose:
       cov_x, std_x = self.__uncertainty(jacobian=jacobian)
     else:
       warnings.warn("Optimization did not converge! Reason: {}. Returning initial values!".format(optimization_results.message))
+      x = np.infty * np.ones((6, 1))
       reprojection_error = np.infty
-      cov_x, std_x = (np.infty * np.ones((6, 6)), np.infty * np.ones((1, 6)))
-    return R, t, reprojection_error, cov_x, std_x
+      cov_x, std_x = (np.infty * np.ones((6, 6)), np.infty * np.ones((6, 1)))
+    return x, R, t, reprojection_error, cov_x, std_x
 
   def __uncertainty(
         self,
@@ -164,11 +166,11 @@ class OptimizeQueryPose:
     
     try:
       cov_p = np.linalg.inv(jacobian.T @ cov_r_inv @ jacobian)  
-      std_p = np.sqrt(np.diag(cov_p))
+      std_p = np.sqrt(np.diag(cov_p)).reshape((6, 1))
     except np.linalg.LinAlgError as e:
       warnings.warn("Linalg-error occured with message: {}".format(e))
       cov_p = np.nan((6,6))
-      std_p = np.nan((1,6))
+      std_p = np.nan((6,1))
 
     return cov_p, std_p
 
@@ -271,8 +273,9 @@ def localize(
       monte_carlo_iterations = 1
       cov = np.zeros((3, 3))
 
+    state_estimates = np.zeros((monte_carlo_iterations, 6))
     standard_deviations = np.zeros((monte_carlo_iterations, 6))
-    reprojection_errors = np.zeros((1, monte_carlo_iterations))
+    reprojection_errors = np.zeros((monte_carlo_iterations, 1))
 
     for idx in range(monte_carlo_iterations):
       if use_monte_carlo:
@@ -298,12 +301,15 @@ def localize(
         sigma_u_std=sigma_u_std,
         sigma_v_std=sigma_v_std
       )
-      R, t, reprojection_error, cov_p, std_p = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
+      x, R, t, reprojection_error, _, std_p = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
 
-      standard_deviations[idx, :] = std_p
-      reprojection_errors[0, idx] = reprojection_error
+      standard_deviations[idx, :] = std_p.T
+      reprojection_errors[idx, :] = reprojection_error
+      state_estimates[idx, :] = x.T
     
-    np.savetxt(f'{query}/sfm/cov.txt', cov_p)
+    if use_monte_carlo:
+      cov_p = np.cov(state_estimates)
+      np.savetxt(f'{query}/sfm/cov.txt', cov_p)
     np.savetxt(f'{query}/sfm/std.txt', std_p)
     np.savetxt(f'{query}/sfm/standard_deviations.txt', standard_deviations)
     np.savetxt(f'{query}/sfm/reprojection_errors.txt', reprojection_errors)
