@@ -148,7 +148,7 @@ def two_view_reconstruction(
   xy2 = common.project(arr=uv2, K_inv=K_inv)
 
   E, inlier_set = __ransac(xy1=xy1, xy2=xy2, uv1=uv1, uv2=uv2, K=K)
-  F = common.F_from_E(E, K)
+  F = common.F_from_E(E=E, K=K)
 
   # print("Found {} inliers".format(np.sum(inlier_set == 1))) 
 
