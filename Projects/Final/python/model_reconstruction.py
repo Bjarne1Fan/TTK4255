@@ -1,15 +1,10 @@
-from msilib.schema import Error
 import os
-from random import sample
 import sys
-from typing import Type
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-import warnings
 import cv2
-import calibrate_camera
 import common, estimate_E, plotting
 from matlab_inspired_interface import match_features, show_matched_features
 
@@ -20,6 +15,9 @@ class ExtractFeaturesSIFT:
         contrast_threshold  : float = 0.05,
         edge_threshold      : float = 25 
       ) -> None:
+    """
+    Class for using SIFT for extracting features
+    """
     # Documentation: https://docs.opencv.org/4.x/d7/d60/classcv_1_1SIFT.html
     self.sift = cv2.SIFT_create(
       nfeatures=n_features, 
@@ -40,6 +38,19 @@ def __match_raw(
       I1 : np.ndarray, 
       I2 : np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+  """
+  Tries to match features from two images
+
+  Input:
+    I1 : Image 1 to be matched
+    I2 : Image 2 to be matched
+
+  Output:
+    keypoints_1   : keypoints in image frame for image 1 
+    keypoints_2   : keypoints in image frame for image 2
+    descriptors_1 : corresponding descriptors for image 1
+    descriptors_2 : corresponding descriptors for image 2
+  """
   sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
   keypoints_1, descriptors_1 = sift.extract_features(image=I1)
   keypoints_2, descriptors_2 = sift.extract_features(image=I2)
@@ -74,10 +85,18 @@ def __ransac(
       K   : np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
   """
-  Assuming that the camera is calibrated in the previous task.
+  Running RANSAC on a presumed calibrated camera.
 
-  Using the methods from assignment 5 to calculate the things 
-  needed for ransac. 
+  Input:
+    xy1 : Projected points for the camera points in image 1
+    xy2 : Projected points for the camera points in image 2
+    uv1 : Camera points for image 1
+    uv2 : Camera points for image 2
+    K   :
+
+  Output:
+    E           : Essential matrix
+    inlier_set  : Inlier set from RANSAC 
 
   Returns the essential matrix and the full inlier set
   """
@@ -108,7 +127,10 @@ def two_view_reconstruction(
       I2_path_str                 : str   = '../data/hw5_ext/IMG_8211.jpg',
       calibration_folder_path_str : str   = '../data/hw5_ext/calibration/'
     ) -> None:
-  # Currently just using the initial images
+  assert isinstance(I1_path_str, str), "Path to image 1 must be string"
+  assert isinstance(I2_path_str, str), "Path to image 2 must be string"
+  assert isinstance(calibration_folder_path_str, str), "Path to calibration folder must be string"
+
   I1 = cv2.imread(os.path.join(sys.path[0], I1_path_str), cv2.IMREAD_GRAYSCALE)
   I2 = cv2.imread(os.path.join(sys.path[0], I2_path_str), cv2.IMREAD_GRAYSCALE)
 
@@ -116,18 +138,9 @@ def two_view_reconstruction(
   K_inv = np.linalg.inv(K) 
 
   # Matching features
-  # best_index_pairs, best_matches, best_keypoints_1, best_keypoints_2 = match_raw(I1, I2)
   keypoints_1, keypoints_2, descriptors1, descriptors2 = __match_raw(I1, I2)
 
   # Running RANSAC to optimize the features extracted
-  # Is it the best keypoints that are going to be sent to ransac?
-  # That does not make sense! It should instead be the other points that are 
-  # not already selected to be the best. Otherwise, ransac may have too few
-  # points to determine the inliers. The problem with having too many points 
-  # to evaluate, is that the problem becomes far more ocmputational complex 
-  # uv1 = np.vstack([best_keypoints_1.T, np.ones(best_keypoints_1.shape[0])])
-  # uv2 = np.vstack([best_keypoints_2.T, np.ones(best_keypoints_2.shape[0])])
-
   uv1 = np.vstack([keypoints_1.T, np.ones(keypoints_1.shape[0])])
   uv2 = np.vstack([keypoints_2.T, np.ones(keypoints_2.shape[0])])
 
@@ -137,15 +150,9 @@ def two_view_reconstruction(
   E, inlier_set = __ransac(xy1=xy1, xy2=xy2, uv1=uv1, uv2=uv2, K=K)
   F = common.F_from_E(E, K)
 
-  # This appears to be too small...
-  # The inlier set will naturally be limited to the dataset being sent into the ransac-module.
-  # However, this is perhaps far too small for our use case? By just sending in the best values 
-  # it may be difficult to get a proper estimate on the actual inliers? However, by sending in
-  # more values, it becomes too heavy for ransac to calculate all... 
   # print("Found {} inliers".format(np.sum(inlier_set == 1))) 
 
   # Extracting the inliers and caluclating the pose
-  # Why are these so strange? The indexing caused by the inlier set causes this!
   xy1 = xy1[:,inlier_set]
   xy2 = xy2[:,inlier_set]
 
