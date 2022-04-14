@@ -11,7 +11,7 @@ from scipy.optimize import least_squares
 import plotting
 import common
 from model_reconstruction import ExtractFeaturesSIFT
-from matlab_inspired_interface import match_features, show_matched_features
+from matlab_inspired_interface import match_features
 
 class OptimizeQueryPose:
   def __init__(
@@ -23,6 +23,19 @@ class OptimizeQueryPose:
         sigma_u_std : float       = 50.0,
         sigma_v_std : float       = 0.1    
       ) -> None:
+    """
+    Class for optimizing the estimate of query pose using nonlinear
+    optimization. 
+
+    Input:
+      K           : Camera coefficient matrix 
+      query_uv    : Detected features in the query camera points
+      X3D         : Detected features in the world frame 
+      use_weights : Bool determining whether weighted residuals to be used
+      sigma_u_std : Standard deviation used for horizontal pixles
+      sigma_v_std : Standard deviation used for vertical pixles
+
+    """
     self.__K_inv = np.linalg.inv(K)
     self.__query_uv = query_uv
     self.__X3D = X3D 
@@ -41,66 +54,24 @@ class OptimizeQueryPose:
 
   def __residual_function(
         self,
-        x     : np.ndarray
+        x : np.ndarray
       ) -> np.ndarray:
     """
-    Residual function for minimzing the reprojection errors, by
+    Residual function for minimzing the reprojection errors. To be used for 
     optimizing the estimated pose.
 
-    You can then estimate the camera pose via minimizing 
-    reprojection errors. 
-
-    Projecting the 3D-coordinates down into the camera plane, and calculating the 
-    distance to the actual points. Returning this error
+    Input:
+      x : 1x6 Current state estimate on the form [rvecs | tvecs]
     
-    The array that must be projected down into the plane however, must first be 
-    rotated such that the values are correct
-
-    OBS! Must make sure that the estimated values also fits as a rotation matrix.
-    Must therefore run the closest rotation matrix to guarantee that the results
-    become proper
-
-    It is assumed that the input will be in the order
-    x = [r11, r12, r13, r21, r22, r23, r31, r32, r33, t1, t2, t3] # NOTE This is outdated
-    x = [roll, theta, yaw, t1, t2, t3] # NOTE Is better
-    x = [rvecs, tvecs] NOTE: Is optimal, such that one does not require to interpret what is
-    roll, pitch and yaw, and the algorithm may do everything for ourselves
-
-    Or will it really? Couldn't it just be angles returned in yaw, theta, roll as
-    in the midterm project? 
-    
-    Also there is a bug where the initial values are not used properly
-
-    Makes more sence that the optimization algorithm will return the three different
-    angles instead of the full rotation matrix. It will be far less work to optimize
-    this as well
-
-    One sees that the rotation matrix does not fit. Can this be caused by the offset 
-    between the axes used by cv2 and us?????? TODO: Check out this theory!
+    Output:
+      residuals : 1x(2n) 
     """
-    roll, pitch, yaw = x[:3]
-    # # R = common.closest_rotation_matrix(x[:9].reshape((3, 3)))
-    R_4x4 = common.rotate_x(roll) @ common.rotate_y(pitch) @ common.rotate_z(yaw) @ self.__R0_4x4
-    R = common.closest_rotation_matrix(R_4x4[:3,:3])
-
-    # rvecs = x[:3].reshape((3, 1))
-    # R, _ = cv2.Rodrigues(rvecs)
-    
+    rvecs = x[:3].reshape((3, 1))
+    R, _ = cv2.Rodrigues(rvecs)
     t = x[3:].reshape((3, 1))
-    # T = common.translate(t[0,0], t[1,0], t[2,0]) @ R_4x4
-    # print(x)
 
-    # NOTE: I am certain that this contains at least one error
-    # I think that the inverse must be used in this case, as we would like the
-    # points given in the plane belonging to the camera in question 
-    # X = common.closest_rotation_matrix(R_4x4[:3,:3]) @ self.__X3D.T + t # Will the rotation and the translation be the inverse of what is used here?
-    # X = T @ self.__X3D1.T
-    # X = X[:3,:] / X[3,:]
-    X = R @ self.__X3D.T + t # I think that it is correct according to L3 S64
+    X = R @ self.__X3D.T + t
     uv_hat = common.project(arr=X, K_inv=self.__K_inv).T
-
-    assert uv_hat.shape[0] == self.__query_uv.shape[0], "Rows must be identical"
-    assert uv_hat.shape[1] == self.__query_uv.shape[1], "Cols must be identical"
 
     residuals = self.__query_uv - uv_hat
     residuals = np.hstack([residuals[:,0].T, residuals[:,1].T]) # Horizontal and then the vertical errors
@@ -112,10 +83,9 @@ class OptimizeQueryPose:
 
   def __jacobian(self) -> np.ndarray:
     """
-    Returns the jacobian corresponding to the optimization
-    problem. 
+    Returns the jacobian corresponding to the optimization problem. 
 
-    Has no impact if the LM-method is used
+    Has no impact if the LM-method is used. Currently returns None
     """
     return None # Until further is known about the sparsity of the model
 
@@ -125,40 +95,24 @@ class OptimizeQueryPose:
         tvecs : np.ndarray
       ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """
-    Nonlinear least squares that must be solved to get R and T better 
-    refined. Using LM-optimization, as used in the midterm project
+    Nonlinear least squares using the LM-method used to refine the estimates for 
+    the rotation matrix and the translation matrix.
+
+    Input:
+      rvecs : Compact form of rotation vector, estimated from solvePnPRansac
+      tvecs : Translation vector estimated from solvePnPRansac
+
+    Output:
+      R                   : 3x3   pose rotation matrix
+      t                   : 3x1   pose translation vector
+      reprojection_error  : float 
+      cov_x               : 6x6   covariance matrix
+      std_x               : 1x6   standard deviation vector
     """
     R, _ = cv2.Rodrigues(rvecs) 
-    t = -tvecs.reshape((3, 1))  # Output from decomposeProjectionMatrix imply that the t-vec should be negated. Why?
-    R0 = np.eye(4)
-    R0[:3,:3] = R
-    self.__R0_4x4 = R0
-    # self.__R0_4x4 = np.block([[R, np.zeros((3, 1))], [np.zeros((1, 3)), 1]])
-    # self.__t0 = -t # Output from decomposeProjectionMatrix imply that this should be negated. Why?
+    t = tvecs.reshape((3, 1))  
 
-    # P = np.block([R, t])
-    # # print(R)
-    # # https://github.com/mpatacchiola/deepgaze/issues/3
-    # __K, __R, __trans_vec, __Rx, __Ry, __Rz, euler_angles = cv2.decomposeProjectionMatrix(
-    #   projMatrix=P, 
-    #   cameraMatrix=self.__K, 
-    #   rotMatrix=R, 
-    #   transVect=np.block([[t],[1]])
-    # )
-    # # print(euler_angles)
-
-    # # NOTE: The euler angles are returned as pitch - yaw - roll
-    # # It is desired to have it in the format roll - pitch - yaw
-    # # https://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/?answer=52913#post-id-52913
-    # euler_angles = np.array([euler_angles[2], euler_angles[0], euler_angles[1]])
-
-    # x0 = np.block([R0.flatten(), t0.flatten()])
-    # x0 = np.hstack([euler_angles.T, t.T]).flatten() 
-    # Output from decomposeProjectionMatrix imply that the t-vec should be negated
-    zeros = np.zeros((1, 3))
-    x0 = np.hstack([zeros.reshape((1, -1)), -tvecs.reshape((1, -1))]).flatten()
-    # x0 = np.hstack([rvecs.reshape((1, -1)), -tvecs.reshape((1, -1))]).flatten()
-    # print(R)
+    x0 = np.hstack([rvecs.reshape((1, -1)), tvecs.reshape((1, -1))]).flatten()
 
     optimization_results = least_squares(
       fun=self.__residual_function,
@@ -173,30 +127,32 @@ class OptimizeQueryPose:
       print("Optimization converged after {} invocations".format(optimization_results.nfev))
       x = optimization_results.x
 
-      # roll, pitch, yaw = x[:3]
-
-      # R_4x4 = common.rotate_x(roll) @ common.rotate_y(pitch) @ common.rotate_z(yaw) @ self.__R0_4x4
-      # R = R_4x4[:3, :3]
       rvecs = x[:3]
       R, _ = cv2.Rodrigues(rvecs)
       t = x[3:].reshape((3, 1))
       reprojection_error = optimization_results.cost
       jacobian = optimization_results.jac
-      uncertainty = self.__uncertainty(jacobian=jacobian)
+      cov_x, std_x = self.__uncertainty(jacobian=jacobian)
     else:
       warnings.warn("Optimization did not converge! Reason: {}. Returning initial values!".format(optimization_results.message))
       reprojection_error = np.infty
-      uncertainty = (np.infty, np.infty)
-    # R = common.closest_rotation_matrix(R)
-    return R, t, reprojection_error, uncertainty[0], uncertainty[1]
+      cov_x, std_x = (np.infty * np.ones((6, 6)), np.infty * np.ones((1, 6)))
+    return R, t, reprojection_error, cov_x, std_x
 
   def __uncertainty(
         self,
         jacobian : np.ndarray
       ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Calculates the uncertainty regarding the estimates. By using that 
-    the jacobian is calculated during the optimization.
+    Uses the estimated jacobian from the optimization to calculate the 
+    uncertainty regarding the estimates. 
+
+    Input:
+      jacobian : (2n)x6
+
+    Output:
+      cov_p : 6x6 Covariance matrix
+      std_p : 1x6 Standard deviation vector
 
     Returns the full covariance-matrix, as well as the standard deviations 
     """
@@ -205,7 +161,6 @@ class OptimizeQueryPose:
     assert jacobian.shape[0] == 2 * self.__N, "Jacobian must match the data"
     
     cov_r_inv = np.eye(2 * self.__N) # inv(eye) = eye 
-    # JTJ = jacobian.T @ jacobian
     
     try:
       cov_p = np.linalg.inv(jacobian.T @ cov_r_inv @ jacobian)  
@@ -219,35 +174,21 @@ class OptimizeQueryPose:
 
 
 def localize(
-      model_path      : str   = '../example_localization',
-      query_path      : str   = '../example_localization/query/',
-      image_str       : str   = 'IMG_8210.jpg'
+      model_path  : str   = '../example_localization',
+      query_path  : str   = '../example_localization/query/',
+      image_str   : str   = 'IMG_8210.jpg'
     ) -> None:
   """
-  From the discussion on overleaf:
+  Tries to localize a query image compared to the world frame.
 
-  What is meant by localization of a random image? Haven't we done this in task 2.1?
-  
-  What is assumed to be meant by localization:
-  Have an image with known features. Receive a new image with unknown features. 
-  Search through the new image and detect if there are any similar features. 
-  If there are enough of them, try to calculate the pose difference between the first and 
-  the second image based on this. 
-  
-  Psudocode:
-   Load random image in dataset
-   Extract features on the random image, and store the features to a file
-   Use solvePnPRansac to get initial guess on R and T
-   Refine R and T with non linear least square
-   Set R and T together to form m2q
-   Plot point cloud with m2q
-
-  Based on the pseudocode, it would be fine if the code received a random image 
-  as input. This means that other functions may be responsible for choosing the 
-  optimal data input. 
-
-  It is assumed that the image/query is undistorted before use
+  Input:
+    model_path : str Path to folder containing the model (world)
+    query_path : str Path to folder containing the query (image to localize)
+    image_str  : str Which image should be used for localization
   """
+  assert isinstance(model_path, str), "model_path must be a string"
+  assert isinstance(query_path, str), "query_path must be a string"
+  assert isinstance(image_str, str), "image_str must be a string"
 
   # For task 3.5
   use_weights = True
@@ -261,8 +202,6 @@ def localize(
   sigma_f_std = 50
   sigma_cx_std = 0.1
   sigma_cy_std = 0.1
-
-  assert isinstance(image_str, str), "Image id must be a string"
 
   default = (
     model_path == '../example_localization' and \
@@ -288,9 +227,6 @@ def localize(
 
     # Extract the same features in the image plane with the same method as previously 
     query_keypoints, query_descriptors = sift.extract_features(image=query_image)
-
-    # model_keypoints = model_keypoints.astype(np.float32, casting='same_kind')
-    # query_keypoints = query_keypoints.astype(np.float32, casting='same_kind')
 
     model_descriptors = model_descriptors.astype(np.float32, casting='same_kind')
     query_descriptors = query_descriptors.astype(np.float32, casting='same_kind')
@@ -367,6 +303,8 @@ def localize(
       standard_deviations[idx, :] = std_p
       reprojection_errors[0, idx] = reprojection_error
     
+    np.savetxt(f'{query}/sfm/cov.txt', cov_p)
+    np.savetxt(f'{query}/sfm/std.txt', std_p)
     np.savetxt(f'{query}/sfm/standard_deviations.txt', standard_deviations)
     np.savetxt(f'{query}/sfm/reprojection_errors.txt', reprojection_errors)
 
@@ -383,9 +321,7 @@ def localize(
         [R,                t], 
         [np.zeros((1, 3)), 1]
       ]
-    ) # TODO: Check if this must be inverted
-    print(T_m2q)
-    # T_m2q = np.linalg.inv(T_m2q)
+    ) 
 
     # Prepare for plotting
     X = X3D.T
@@ -408,11 +344,7 @@ def localize(
     T_m2q = np.loadtxt(f'{query}/IMG_8210_T_m2q.txt')
 
     # If you have colors for your point cloud model...
-    colors = np.loadtxt(f'{model}/c.txt') # RGB colors [num_points x 3].
-    # ...otherwise...
-    # colors = np.zeros((X.shape[1], 3))
-
-  # Plot point-cloud using the model-to-query
+    colors = np.loadtxt(f'{model}/c.txt') 
 
   # These control the visible volume in the 3D point cloud plot.
   # You may need to adjust these if your model does not show up.
@@ -435,39 +367,6 @@ def localize(
     frame_size=frame_size
   )
   plt.tight_layout()
-
-  # if include_default:
-  #   # Include the default pose
-  #   model_path = '../example_localization'
-  #   query_path = '../example_localization/query/'
-  #   image_str = 'IMG_8210'
-
-  #   model = os.path.join(*[sys.path[0], model_path])
-  #   query = os.path.join(*[sys.path[0], query_path + image_str])
-
-  #   # Load features from the world frame
-  #   # 3D points [4 x num_points].
-  #   X = np.loadtxt(f'{model}/X.txt')
-
-  #   # Model-to-query transformation.
-  #   # If you estimated the query-to-model transformation,
-  #   # then you need to take the inverse.
-  #   T_m2q = np.loadtxt(f'{query}_T_m2q.txt')
-
-  #   # If you have colors for your point cloud model...
-  #   colors = np.loadtxt(f'{model}/c.txt') # RGB colors [num_points x 3].
-
-  #   plotting.draw_point_cloud(
-  #     X=X, 
-  #     T_m2q=T_m2q, 
-  #     xlim=xlim, 
-  #     ylim=ylim, 
-  #     zlim=zlim, 
-  #     colors=colors, 
-  #     marker_size=marker_size, 
-  #     frame_size=frame_size
-  #   )
-  #   plt.tight_layout()
   
 
 if __name__ == '__main__':
