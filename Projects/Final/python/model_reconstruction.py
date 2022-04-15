@@ -51,14 +51,14 @@ def __match_raw(
     descriptors_1 : corresponding descriptors for image 1
     descriptors_2 : corresponding descriptors for image 2
   """
-  sift = ExtractFeaturesSIFT(n_features=0, contrast_threshold=0.05, edge_threshold=25)
+  sift = ExtractFeaturesSIFT(n_features=50000, contrast_threshold=0.01, edge_threshold=35)
   keypoints_1, descriptors_1 = sift.extract_features(image=I1)
   keypoints_2, descriptors_2 = sift.extract_features(image=I2)
 
   index_pairs, match_metric = match_features(
     descriptors_1, 
     descriptors_2, 
-    max_ratio=1.0, 
+    max_ratio=0.75, 
     unique=True
   )
   # print(index_pairs[:50])
@@ -115,7 +115,7 @@ def __ransac(
     uv1=uv1,
     uv2=uv2, 
     K=K, 
-    distance_threshold=4, 
+    distance_threshold=2, 
     num_trials=num_trials 
   )
 
@@ -125,11 +125,13 @@ def __ransac(
 def two_view_reconstruction(
       I1_path_str                 : str   = '../data/hw5_ext/IMG_8210.jpg',
       I2_path_str                 : str   = '../data/hw5_ext/IMG_8211.jpg',
-      calibration_folder_path_str : str   = '../data/hw5_ext/calibration/'
+      calibration_folder_path_str : str   = '../data/hw5_ext/calibration/',
+      use_ransac                  : bool  = True
     ) -> None:
   assert isinstance(I1_path_str, str), "Path to image 1 must be string"
   assert isinstance(I2_path_str, str), "Path to image 2 must be string"
   assert isinstance(calibration_folder_path_str, str), "Path to calibration folder must be string"
+  assert isinstance(use_ransac, bool), "use_ransac must be a boolean"
 
   I1 = cv2.imread(os.path.join(sys.path[0], I1_path_str), cv2.IMREAD_GRAYSCALE)
   I2 = cv2.imread(os.path.join(sys.path[0], I2_path_str), cv2.IMREAD_GRAYSCALE)
@@ -139,6 +141,11 @@ def two_view_reconstruction(
 
   # Matching features
   keypoints_1, keypoints_2, descriptors1, descriptors2 = __match_raw(I1, I2)
+
+  # Only show the results before RANSAC
+  if not use_ransac:
+    plt.show()
+    return
 
   # Running RANSAC to optimize the features extracted
   uv1 = np.vstack([keypoints_1.T, np.ones(keypoints_1.shape[0])])
@@ -199,7 +206,8 @@ if __name__ == '__main__':
   two_view_reconstruction(
     I1_path_str=I1_path_str, 
     I2_path_str=I2_path_str, 
-    calibration_folder_path_str=calibration_folder_path_str
+    calibration_folder_path_str=calibration_folder_path_str,
+    use_ransac=True
   )
 
 

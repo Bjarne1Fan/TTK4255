@@ -113,7 +113,7 @@ class OptimizeQueryPose:
     R, _ = cv2.Rodrigues(rvecs) 
     t = tvecs.reshape((3, 1))  
 
-    x0 = np.hstack([rvecs.reshape((1, -1)), tvecs.reshape((1, -1))]).flatten()
+    x0 = np.hstack([rvecs.reshape((1, -1)), t.reshape((1, -1))]).flatten()
 
     optimization_results = least_squares(
       fun=self.__residual_function,
@@ -198,7 +198,7 @@ def localize(
   sigma_v_std = 0.1
 
   # For task 3.6
-  use_monte_carlo = True
+  use_monte_carlo = False
   monte_carlo_iterations = 5
 
   sigma_f_std = 50
@@ -301,7 +301,7 @@ def localize(
         sigma_u_std=sigma_u_std,
         sigma_v_std=sigma_v_std
       )
-      x, R, t, reprojection_error, _, std_x = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
+      x, R, t, reprojection_error, cov_x, std_x = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
 
       standard_deviations[idx, :] = std_x.T
       reprojection_errors[idx, :] = reprojection_error
@@ -319,6 +319,19 @@ def localize(
 
       print("Standard deviations over {} iterations".format(monte_carlo_iterations))
       print(std_p.reshape((1,-1)))
+
+    else:
+      print("Covariance matrix")
+      print(cov_x)
+
+      print("Standard deviations")
+      print(std_x)
+
+      print("Rotation matrix")
+      print(R)
+
+      print("Translation")
+      print(t)
     
     np.savetxt(f'{query}/sfm/standard_deviations.txt', standard_deviations)
     np.savetxt(f'{query}/sfm/reprojection_errors.txt', reprojection_errors)
@@ -329,12 +342,15 @@ def localize(
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     # NOTE: Will only use the last rotation matrix and the last translation vector if one uses the 
     # monte-carlo simulations
+    R, _ = cv2.Rodrigues(rvecs)
+    t = tvecs.reshape((3, 1))
     T_m2q = np.block(
       [
         [R,                t], 
         [np.zeros((1, 3)), 1]
       ]
-    ) 
+    )
+    # T_m2q = np.linalg.inv(T_m2q)
 
     # Prepare for plotting
     X = X3D.T
@@ -349,7 +365,6 @@ def localize(
     # Load features from the world frame
     # 3D points [4 x num_points].
     X = np.loadtxt(f'{model}/X.txt')
-    print(X.shape)
 
     # Model-to-query transformation.
     # If you estimated the query-to-model transformation,
@@ -385,11 +400,12 @@ def localize(
 if __name__ == '__main__':
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
   query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
-  image_str = "IMG_8218.jpg"
+  image_str = "IMG_8220.jpg"
   localize(
     model_path=model_path,
     query_path=query_path,
     image_str=image_str
   )
-  # localize()
   plt.show()
+  # localize()
+  # plt.show()

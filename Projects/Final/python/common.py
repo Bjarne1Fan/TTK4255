@@ -115,11 +115,24 @@ def triangulate_many(
 
 
 def find_optimal_pose(
-      pose_matrices : list,
+      pose_matrices : list[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
       pose_world    : np.ndarray,
       xy1           : np.ndarray,
       xy2           : np.ndarray
     ) -> np.ndarray:
+  """
+  Calculates the pose with the most camera coordinates in 
+  front of the camera (Z > 0)
+
+  Input: 
+    pose_matrices : List of 4 pose matrices
+    pose_world    : Pose of the world frame, camera 1
+    xy1           : Calibrated camera coordinates for camera 1
+    xy2           : Calibrated camera coordinates for camera 2
+
+  Output:
+    optimal_pose_matrix : Pose with most coordinates in front of the camera 
+  """
 
   assert isinstance(pose_matrices, list), "Input must be a list"
   assert isinstance(pose_matrices[0], np.ndarray), "Input must be a list of ndarrays"
