@@ -169,8 +169,8 @@ class OptimizeQueryPose:
       std_p = np.sqrt(np.diag(cov_p)).reshape((6, 1))
     except np.linalg.LinAlgError as e:
       warnings.warn("Linalg-error occured with message: {}".format(e))
-      cov_p = np.nan((6,6))
-      std_p = np.nan((6,1))
+      cov_p = np.nan * np.ones((6,6))
+      std_p = np.nan * np.ones((6,1))
 
     return cov_p, std_p
 
@@ -193,13 +193,13 @@ def localize(
   assert isinstance(image_str, str), "image_str must be a string"
 
   # For task 3.5
-  use_weights = True
+  use_weights = False
   sigma_u_std = 50.0
   sigma_v_std = 0.1
 
   # For task 3.6
-  use_monte_carlo = False
-  monte_carlo_iterations = 500
+  use_monte_carlo = True
+  monte_carlo_iterations = 5
 
   sigma_f_std = 50
   sigma_cx_std = 0.1
@@ -217,7 +217,7 @@ def localize(
   if not default:
     K = np.loadtxt(f'{model}/K.txt')
     
-    # matched_features = [features | X3D | descriptors]
+    # matched_features = [keypoints | X3D | descriptors]
     matched_features = np.loadtxt(f'{model}/matched_features.txt')
 
     model_keypoints = matched_features[:, :2]
@@ -301,23 +301,30 @@ def localize(
         sigma_u_std=sigma_u_std,
         sigma_v_std=sigma_v_std
       )
-      x, R, t, reprojection_error, _, std_p = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
+      x, R, t, reprojection_error, _, std_x = optimize_query_pose.nonlinear_least_squares(rvecs=rvecs, tvecs=tvecs)
 
-      standard_deviations[idx, :] = std_p.T
+      standard_deviations[idx, :] = std_x.T
       reprojection_errors[idx, :] = reprojection_error
       state_estimates[idx, :] = x.T
     
     if use_monte_carlo:
-      cov_p = np.cov(state_estimates)
+      print(state_estimates)
+      cov_p = np.cov(state_estimates.T) 
+      std_p = np.sqrt(np.diag(cov_p))
       np.savetxt(f'{query}/sfm/cov.txt', cov_p)
-    np.savetxt(f'{query}/sfm/std.txt', std_p)
+      np.savetxt(f'{query}/sfm/std.txt', std_p)
+      
+      print("Covariance matrix over {} iterations".format(monte_carlo_iterations))
+      print(cov_p.reshape((1,-1)))
+
+      print("Standard deviations over {} iterations".format(monte_carlo_iterations))
+      print(std_p.reshape((1,-1)))
+    
     np.savetxt(f'{query}/sfm/standard_deviations.txt', standard_deviations)
     np.savetxt(f'{query}/sfm/reprojection_errors.txt', reprojection_errors)
 
-    print("Average standard deviations over {} iterations".format(monte_carlo_iterations))
-    print(standard_deviations.mean(axis=0))
     print("Average reprojection error over {} iterations".format(monte_carlo_iterations))
-    print(reprojection_errors.mean(axis=1))
+    print(reprojection_errors.mean(axis=0))
 
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     # NOTE: Will only use the last rotation matrix and the last translation vector if one uses the 
