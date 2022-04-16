@@ -196,6 +196,9 @@ def localize(
   assert isinstance(query_path, str), "query_path must be a string"
   assert isinstance(image_str, str), "image_str must be a string"
 
+  # For debugging
+  plot_optimized_results = False
+
   # For task 3.5
   use_weights = False
   sigma_u_std = 50.0
@@ -359,8 +362,9 @@ def localize(
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
     # NOTE: Will only use the last rotation matrix and the last translation vector if one uses the 
     # monte-carlo simulations
-    R, _ = cv2.Rodrigues(rvecs)
-    t = tvecs.reshape((3, 1))
+    if not plot_optimized_results:
+      R, _ = cv2.Rodrigues(rvecs)
+      t = tvecs.reshape((3, 1))
     T_m2q = np.block(
       [
         [R,                t], 
