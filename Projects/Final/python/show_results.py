@@ -99,14 +99,15 @@ def show_default_localization_results():
   
 
 def show_localization_results():
-  # All of these generate the same damn image and image styr
-  image_str_list = ["IMG_8207.jpg", "IMG_8210.jpg", "IMG_8220.jpg", "IMG_8216.jpg"] 
+  image_str_list = ["IMG_8207.jpg", "IMG_8210.jpg", "IMG_8216.jpg", "IMG_8220.jpg", "IMG_8224.jpg", "IMG_8230.jpg"] 
+  # image_str_list = ["IMG_8210.jpg", "IMG_8211.jpg"] # Images used to create world
 
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
   query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
 
   for image_str in image_str_list:
-    localize.localize(
+    print("Running image: {}".format(image_str))
+    localize.localize(      
       model_path=model_path,
       query_path=query_path,
       image_str=image_str

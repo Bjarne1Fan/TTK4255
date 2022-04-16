@@ -1,7 +1,9 @@
+from msilib.schema import Error
 import os 
 import sys
 import warnings
 import cv2
+import math
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -134,11 +136,13 @@ class OptimizeQueryPose:
       reprojection_error = optimization_results.cost
       jacobian = optimization_results.jac
       cov_x, std_x = self.__uncertainty(jacobian=jacobian)
+
     else:
       warnings.warn("Optimization did not converge! Reason: {}. Returning initial values!".format(optimization_results.message))
       x = np.infty * np.ones((6, 1))
       reprojection_error = np.infty
       cov_x, std_x = (np.infty * np.ones((6, 6)), np.infty * np.ones((6, 1)))
+
     return x, R, t, reprojection_error, cov_x, std_x
 
   def __uncertainty(
@@ -311,8 +315,8 @@ def localize(
       print(state_estimates)
       cov_p = np.cov(state_estimates.T) 
       std_p = np.sqrt(np.diag(cov_p))
-      np.savetxt(f'{query}/sfm/cov.txt', cov_p)
-      np.savetxt(f'{query}/sfm/std.txt', std_p)
+      np.savetxt(f'{query}/sfm/{image_str}_cov.txt', cov_p)
+      np.savetxt(f'{query}/sfm/{image_str}_std.txt', std_p)
       
       print("Covariance matrix over {} iterations".format(monte_carlo_iterations))
       print(cov_p.reshape((1,-1)))
@@ -324,7 +328,20 @@ def localize(
       print("Covariance matrix")
       print(cov_x)
 
-      print("Standard deviations")
+      rod_std = std_x[:3]
+      R_std, _ = cv2.Rodrigues(rod_std)
+      
+      # This might suffer Gimbal lock
+      try:
+        # https://stackoverflow.com/questions/11514063/extract-yaw-pitch-and-roll-from-a-rotationmatrix
+        yaw = math.atan2(R_std[1,0], R_std[0,0])
+        pitch = math.atan2(-R_std[2,0], math.sqrt(R_std[2,1]**2 + R_std[2,2]**2))
+        roll = math.atan2(R_std[2,1], R_std[2,2])
+        rpy = np.array([roll, pitch, yaw])
+        std_x[:3] = rpy.reshape((3,1))
+      except Error as e:
+        print("Error occured when calculating roll, pitch, yaw with message: {}".format(e))
+      print("Standard deviations [rad | m]") # Uncertain on how to calculate the std into m
       print(std_x)
 
       print("Rotation matrix")
@@ -333,8 +350,8 @@ def localize(
       print("Translation")
       print(t)
     
-    np.savetxt(f'{query}/sfm/standard_deviations.txt', standard_deviations)
-    np.savetxt(f'{query}/sfm/reprojection_errors.txt', reprojection_errors)
+    np.savetxt(f'{query}/sfm/{image_str}_standard_deviations.txt', standard_deviations)
+    np.savetxt(f'{query}/sfm/{image_str}_reprojection_errors.txt', reprojection_errors)
 
     print("Average reprojection error over {} iterations".format(monte_carlo_iterations))
     print(reprojection_errors.mean(axis=0))
@@ -351,15 +368,17 @@ def localize(
       ]
     )
     # T_m2q = np.linalg.inv(T_m2q)
+    print("T_m2q")
+    print(T_m2q)
 
     # Prepare for plotting
     X = X3D.T
     colors = np.zeros((X3D.shape[0], 3))
 
     # Store the data
-    np.savetxt(f'{query}/sfm/T_m2q.txt', T_m2q)
+    np.savetxt(f'{query}/sfm/{image_str}_T_m2q.txt', T_m2q)
     # np.savetxt(f'{query}/sfm/reprojection_error.txt', reprojection_error)
-    np.savetxt(f'{query}/sfm/inliers.txt', inliers)
+    np.savetxt(f'{query}/sfm/{image_str}_inliers.txt', inliers)
 
   else:
     # Load features from the world frame
