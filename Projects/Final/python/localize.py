@@ -38,7 +38,7 @@ class OptimizeQueryPose:
       sigma_v_std : Standard deviation used for vertical pixles
 
     """
-    self.__K_inv = np.linalg.inv(K)
+    self.__K = K
     self.__query_uv = query_uv
     self.__X3D = X3D 
     
@@ -73,7 +73,7 @@ class OptimizeQueryPose:
     t = x[3:].reshape((3, 1))
 
     X = R @ self.__X3D.T + t
-    uv_hat = common.project(arr=X, K_inv=self.__K_inv).T
+    uv_hat = common.project(arr=X, K=self.__K).T
 
     residuals = self.__query_uv - uv_hat
     residuals = np.hstack([residuals[:,0].T, residuals[:,1].T]) # Horizontal and then the vertical errors
@@ -197,7 +197,7 @@ def localize(
   assert isinstance(image_str, str), "image_str must be a string"
 
   # For debugging
-  plot_optimized_results = False
+  plot_optimized_results = True
 
   # For task 3.5
   use_weights = False
@@ -269,6 +269,9 @@ def localize(
       distCoeffs=np.zeros((1,4), dtype=np.float32), # Assuming that the images are undistorted before use
       reprojectionError=3.0
     )
+    if inliers is None:
+      print("RANSAC was unable to detect any inliers")
+      return
 
     X3D = X3D[inliers[:, 0]]
     query_keypoints = query_keypoints[inliers[:, 0]]
@@ -334,7 +337,7 @@ def localize(
       rod_std = std_x[:3]
       R_std, _ = cv2.Rodrigues(rod_std)
       
-      # This might suffer Gimbal lock
+      # This might suffer Gimbal lock, but should not be a problem in this case
       try:
         # https://stackoverflow.com/questions/11514063/extract-yaw-pitch-and-roll-from-a-rotationmatrix
         yaw = math.atan2(R_std[1,0], R_std[0,0])
@@ -423,7 +426,7 @@ def localize(
 if __name__ == '__main__':
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
   query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
-  image_str = "IMG_8220.jpg"
+  image_str = "IMG_8224.jpg"
   localize(
     model_path=model_path,
     query_path=query_path,
