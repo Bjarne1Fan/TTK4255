@@ -89,7 +89,7 @@ class OptimizeQueryPose:
 
     Has no impact if the LM-method is used. Currently returns None
     """
-    return None # Until further is known about the sparsity of the model
+    return None
 
   def nonlinear_least_squares(
         self,
