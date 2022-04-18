@@ -149,6 +149,10 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
   This method tries to undistort an image, multiplying the 
   obtained standard deviations with n_sigma. Only the distortion
   parameters are affected.
+
+  By multiplying with n_sigma, it is theorized that the undistortion
+  will include more dramatic effects compared to just using the 
+  normal distributions to sample the distortion coefficients
   """
 
   folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
@@ -174,8 +178,6 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
     cameraMatrix=K, 
     distCoeffs=np.array([k1, k2, p1, p2, k3]) + np.array([k1_std, k2_std, p1_std, p2_std, k3_std]) * n_sigma
   )
-
-  print(distorted_image.shape)
 
   resized_image = __resize_with_aspect_ratio(undistorted_image, height=800)
   cv.imshow('Undistorted image', resized_image)
