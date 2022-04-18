@@ -188,7 +188,7 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
   )
 
   resized_image = __resize_with_aspect_ratio(undistorted_image, height=800)
-  cv.imshow('Undistorted image', resized_image)
+  cv.imshow('Undistorted image using n_sigma = {}'.format(n_sigma), resized_image)
   cv.waitKey(0)
 
   return undistorted_image
