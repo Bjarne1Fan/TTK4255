@@ -152,8 +152,16 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
 
   By multiplying with n_sigma, it is theorized that the undistortion
   will include more dramatic effects compared to just using the 
-  normal distributions to sample the distortion coefficients
+  normal distributions to sample the distortion coefficients. 
+  By using the default value = 3.0, one expect the proper calibration 
+  to perform better in 99 % of the situations. In other words, testing
+  using the worst case alternative
   """
+  assert n_sigma >= 0, "Must be greater than 0"
+  print(
+    "Skewing the distortion-parameters using their normal distrubution \
+    with their respective standard deviation multiplied by {}".format(n_sigma)
+  )
 
   folder = os.path.join(sys.path[0], '../data/hw5_ext/calibration')
 
