@@ -206,7 +206,7 @@ def localize(
 
   # For task 3.6
   use_monte_carlo = False
-  monte_carlo_iterations = 5
+  num_monte_carlo_iterations = 5
 
   sigma_f_std = 50
   sigma_cx_std = 0.1
@@ -276,18 +276,18 @@ def localize(
     X3D = X3D[inliers[:, 0]]
     query_keypoints = query_keypoints[inliers[:, 0]]
 
-    if use_monte_carlo and monte_carlo_iterations > 0:
-      print("Running in total {} monte-carlo simulations".format(monte_carlo_iterations))
+    if use_monte_carlo and num_monte_carlo_iterations > 0:
+      print("Running in total {} monte-carlo simulations".format(num_monte_carlo_iterations))
       cov = np.diag([sigma_f_std**2, sigma_cx_std**2, sigma_cy_std**2])
     else:
-      monte_carlo_iterations = 1
+      num_monte_carlo_iterations = 1
       cov = np.zeros((3, 3))
 
-    state_estimates = np.zeros((monte_carlo_iterations, 6))
-    standard_deviations = np.zeros((monte_carlo_iterations, 6))
-    reprojection_errors = np.zeros((monte_carlo_iterations, 1))
+    state_estimates = np.zeros((num_monte_carlo_iterations, 6))
+    standard_deviations = np.zeros((num_monte_carlo_iterations, 6))
+    reprojection_errors = np.zeros((num_monte_carlo_iterations, 1))
 
-    for idx in range(monte_carlo_iterations):
+    for idx in range(num_monte_carlo_iterations):
       if use_monte_carlo:
         print("Simulation number {}".format(idx))
       
@@ -324,10 +324,10 @@ def localize(
       np.savetxt(f'{query}/sfm/{image_str}_cov.txt', cov_p)
       np.savetxt(f'{query}/sfm/{image_str}_std.txt', std_p)
       
-      print("Covariance matrix over {} iterations".format(monte_carlo_iterations))
+      print("Covariance matrix over {} iterations".format(num_monte_carlo_iterations))
       print(cov_p.reshape((1,-1)))
 
-      print("Standard deviations over {} iterations".format(monte_carlo_iterations))
+      print("Standard deviations over {} iterations".format(num_monte_carlo_iterations))
       print(std_p.reshape((1,-1)))
 
     else:
@@ -339,15 +339,15 @@ def localize(
       
       # This might suffer Gimbal lock, but should not be a problem in this case
       try:
-        # https://stackoverflow.com/questions/11514063/extract-yaw-pitch-and-roll-from-a-rotationmatrix
-        yaw = math.atan2(R_std[1,0], R_std[0,0])
-        pitch = math.atan2(-R_std[2,0], math.sqrt(R_std[2,1]**2 + R_std[2,2]**2))
-        roll = math.atan2(R_std[2,1], R_std[2,2])
-        rpy = np.array([roll, pitch, yaw])
-        std_x[:3] = rpy.reshape((3,1))
+        # Originally 'koked' from: https://stackoverflow.com/questions/11514063/extract-yaw-pitch-and-roll-from-a-rotationmatrix 
+        r_x = math.atan2(R_std[2,1], R_std[2,2])
+        r_y = math.atan2(-R_std[2,0], math.sqrt(R_std[2,1]**2 + R_std[2,2]**2))
+        r_z = math.atan2(R_std[1,0], R_std[0,0])
+        r_angles = np.array([r_x, r_y, r_z])
+        std_x[:3] = r_angles.reshape((3,1))
       except Error as e:
         print("Error occured when calculating roll, pitch, yaw with message: {}".format(e))
-      print("Standard deviations [rad | m]") # Uncertain on how to calculate the std into m
+      print("Standard deviations [rad | ?]") # Uncertain on how to calculate the std into m
       print(std_x)
 
       print("Rotation matrix")
@@ -359,7 +359,7 @@ def localize(
     np.savetxt(f'{query}/sfm/{image_str}_standard_deviations.txt', standard_deviations)
     np.savetxt(f'{query}/sfm/{image_str}_reprojection_errors.txt', reprojection_errors)
 
-    print("Average reprojection error over {} iterations".format(monte_carlo_iterations))
+    print("Average reprojection error over {} iterations".format(num_monte_carlo_iterations))
     print(reprojection_errors.mean(axis=0))
 
     # Develop model-to-query transformation by [[R, t], [0, 0, 0, 1]]
@@ -426,7 +426,7 @@ def localize(
 if __name__ == '__main__':
   model_path = os.path.join(sys.path[0], "../data/results/task_2_1")
   query_path = os.path.join(sys.path[0], "../data/hw5_ext/undistorted/")
-  image_str = "IMG_8224.jpg"
+  image_str = "IMG_8216.jpg"
   localize(
     model_path=model_path,
     query_path=query_path,
