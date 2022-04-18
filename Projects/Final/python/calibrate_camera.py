@@ -197,10 +197,10 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
   resized_nsigma_image = __resize_with_aspect_ratio(nsigma_undistorted_image, height=800)
   cv.imshow('Undistorted image using n_sigma = {}'.format(n_sigma), resized_nsigma_image)
   cv.imshow('Undistorted image using n_sigma = {}'.format(0), resized_correct_image)
-  cv.imshow('Difference between image using n_sigma = {} and correct image'.format(n_sigma), resized_nsigma_image - resized_correct_image)  # negative image
+  cv.imshow('Difference between image using n_sigma = {} and correct image'.format(n_sigma), resized_nsigma_image - resized_correct_image)  # Negative image
   cv.waitKey(0)
 
 
 if __name__ == '__main__':
-  # calibrate()
+  calibrate()
   test_camera_distortion_n_sigma(n_sigma=3.0)
