@@ -1,12 +1,12 @@
 import os 
 import sys
 
+from os.path import join, basename, realpath, dirname, exists
+
 import warnings
 import numpy as np
 import cv2 as cv
 import glob
-
-from os.path import join, basename, realpath, dirname, exists
 
 
 def calibrate() -> tuple:
@@ -180,19 +180,27 @@ def test_camera_distortion_n_sigma(n_sigma : float = 3.0):
   image_path_pattern = os.path.join(sys.path[0], '../data/hw5_ext/calibration/*.jpg')
   distorted_image = cv.imread(glob.glob(image_path_pattern)[53])
 
-  # Undistorting with the original 
-  undistorted_image = cv.undistort(
+  # Undistorting with the original parameters
+  correct_undistorted_image = cv.undistort(
+    src=distorted_image,
+    cameraMatrix=K, 
+    distCoeffs=np.array([k1, k2, p1, p2, k3])
+  )
+
+  nsigma_undistorted_image = cv.undistort(
     src=distorted_image,
     cameraMatrix=K, 
     distCoeffs=np.array([k1, k2, p1, p2, k3]) + np.array([k1_std, k2_std, p1_std, p2_std, k3_std]) * n_sigma
   )
 
-  resized_image = __resize_with_aspect_ratio(undistorted_image, height=800)
-  cv.imshow('Undistorted image using n_sigma = {}'.format(n_sigma), resized_image)
+  resized_correct_image = __resize_with_aspect_ratio(correct_undistorted_image, height=800)
+  resized_nsigma_image = __resize_with_aspect_ratio(nsigma_undistorted_image, height=800)
+  cv.imshow('Undistorted image using n_sigma = {}'.format(n_sigma), resized_nsigma_image)
+  cv.imshow('Undistorted image using n_sigma = {}'.format(0), resized_correct_image)
+  cv.imshow('Difference between image using n_sigma = {} and correct image'.format(n_sigma), resized_nsigma_image - resized_correct_image)  # negative image
   cv.waitKey(0)
 
-  return undistorted_image
 
 if __name__ == '__main__':
-  calibrate()
+  # calibrate()
   test_camera_distortion_n_sigma(n_sigma=3.0)
