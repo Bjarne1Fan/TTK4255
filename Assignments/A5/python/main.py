@@ -21,10 +21,8 @@ uv1 = np.vstack([matches[:,:2].T, np.ones(matches.shape[0])])
 uv2 = np.vstack([matches[:,2:4].T, np.ones(matches.shape[0])])
 
 # Task 2: Estimate E
-K_inv = np.linalg.inv(K)
-
-xy1 = project.project(arr=uv1, K_inv=K_inv)
-xy2 = project.project(arr=uv2, K_inv=K_inv)
+xy1 = project.project(arr=uv1, K=K)
+xy2 = project.project(arr=uv2, K=K)
 
 E = estimate_E.eight_point_algorithm(xy1=xy1, xy2=xy2)
 F = F_from_E.F_from_E(E=E, K=K)
